@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AutoFish Project — The Complete A-to-Z Story (Layman + Technical)</title>
+<style>
+  @page { size: A4 portrait; margin: 14mm 13mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #0b0b0b; background: #ffffff;
+    max-width: 194mm; margin: 0 auto; padding: 8mm 4mm 15mm 4mm;
+    font-size: 10.5pt; line-height: 1.5;
+  }
+  h1 { font-size: 21pt; line-height: 1.2; color: #184f95; margin-bottom: 3mm; }
+  .meta { color: #52514e; font-size: 10pt; margin-bottom: 6mm; }
+  .meta a { color: #184f95; }
+  h2 {
+    font-size: 14.5pt; color: #184f95; margin: 8mm 0 3mm 0;
+    padding-top: 3mm; border-top: 0.5mm solid #2a78d6;
+    page-break-after: avoid;
+  }
+  h2 .stepno {
+    display: inline-block; background: #2a78d6; color: #fff;
+    border-radius: 2mm; padding: 0 2.5mm; font-size: 11pt; margin-right: 2mm;
+    vertical-align: middle;
+  }
+  h3 { font-size: 11.5pt; margin: 4mm 0 1.5mm 0; page-break-after: avoid; }
+  p { margin-bottom: 2.5mm; }
+  ul, ol { margin: 0 0 2.5mm 5mm; }
+  li { margin-bottom: 1.2mm; }
+  code {
+    font-family: Consolas, "Cascadia Code", monospace; font-size: 9.3pt;
+    background: #f0efec; border-radius: 1mm; padding: 0 1mm;
+  }
+  pre {
+    font-family: Consolas, "Cascadia Code", monospace; font-size: 8.8pt;
+    background: #f5f4f1; border-radius: 2mm; padding: 3mm; margin-bottom: 3mm;
+    overflow-x: auto; line-height: 1.45;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 2mm 0 4mm 0; font-size: 9.5pt; }
+  th, td { border: 0.25mm solid #d8d7d0; padding: 1.4mm 2.2mm; text-align: left; }
+  th { background: #eef3fb; color: #184f95; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .cols {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4mm;
+    margin: 3mm 0 4mm 0;
+  }
+  .lay, .tech { border-radius: 2.5mm; padding: 3.5mm 4mm; }
+  .lay  { background: #eef3fb; border-left: 1.2mm solid #2a78d6; }
+  .tech { background: #f5f4f1; border-left: 1.2mm solid #898781; }
+  .lay h4, .tech h4 {
+    font-size: 9pt; text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 2mm;
+  }
+  .lay h4  { color: #184f95; }
+  .tech h4 { color: #52514e; }
+  .lay p, .lay li, .tech p, .tech li { font-size: 9.8pt; }
+  .highlight {
+    background: #184f95; color: #fff; border-radius: 2.5mm;
+    padding: 4mm 5mm; margin: 4mm 0;
+  }
+  .highlight h3 { color: #fff; margin-top: 0; }
+  .note {
+    background: #fdf3e0; border-left: 1.2mm solid #eda100;
+    border-radius: 1.5mm; padding: 2.5mm 3.5mm; margin: 3mm 0; font-size: 9.8pt;
+  }
+  .toc { background: #f5f4f1; border-radius: 2.5mm; padding: 4mm 5mm; margin-bottom: 5mm; }
+  .toc h3 { margin-top: 0; }
+  .toc ol { columns: 2; column-gap: 8mm; margin-left: 5mm; font-size: 9.8pt; }
+  .step { page-break-inside: auto; }
+  @media print {
+    body { padding: 0; }
+    .cols { page-break-inside: avoid; }
+    table { page-break-inside: avoid; }
+  }
+  @media (max-width: 700px) { .cols { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>Fish Length Estimation with Vision Foundation Models<br>The Complete A-to-Z Project Story</h1>
+<div class="meta">
+  Shahman Butt · Area Seminar — Deep Learning for Maritime Vision Applications (VACOT), University of Rostock<br>
+  Repository: <a href="https://github.com/Shahman-Butt/AreaSeminarFishLength">github.com/Shahman-Butt/AreaSeminarFishLength</a><br>
+  Every step is told twice, side by side: <strong style="color:#184f95">in plain words</strong> (left, blue) and <strong style="color:#52514e">in technical detail</strong> (right, gray).
+</div>
+
+<div class="toc">
+  <h3>The journey, in sequence</h3>
+  <ol>
+    <li>The assignment</li>
+    <li>Understanding the AutoFish paper</li>
+    <li>Setting up the workshop</li>
+    <li>Getting the data</li>
+    <li>Building the master index</li>
+    <li>The anti-cheating audit (split &amp; leakage)</li>
+    <li>Cutting out the fish (preprocessing)</li>
+    <li>Defining success (metrics)</li>
+    <li>Designing the model</li>
+    <li>The training procedure</li>
+    <li>Experiment 1 — reproducing the baseline</li>
+    <li>What foundation models are</li>
+    <li>Experiments 2–5 — the DINOv2 saga</li>
+    <li>Experiments 6–7 — CLIP</li>
+    <li>Experiment 8 — ConvNeXt-Tiny</li>
+    <li>The final ranking &amp; what it means</li>
+    <li>Good scientific practice built in</li>
+    <li>Deliverables &amp; repository</li>
+    <li>What remains open</li>
+    <li>Glossary + full results appendix</li>
+  </ol>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">1</span>The assignment</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>My professor gave me a two-part job. <strong>Part one:</strong> take a freshly published research paper about measuring fish from photos, rebuild its system from scratch, and prove I get the same result they published. <strong>Part two:</strong> once my rebuild is trustworthy, replace the "seeing" part of the system with newer, much larger AI models and find out — with a fair test — whether they measure fish better.</p>
+    <p>Why in that order? Because if I can't first match the published number, I can never know whether my later comparisons show real differences between models or just bugs in my own setup. Reproduction is the calibration of my whole laboratory.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p><strong>Task 1 (Q1):</strong> reproduce the REG MobileNetV2 length-regression baseline from <em>Bengtson et al., "AutoFish: Dataset and Benchmark for Fine-grained Analysis of Fish", WACV Workshops 2025 (arXiv:2501.03767)</em>, targeting the reported test MAE of <strong>0.62&nbsp;cm</strong> (non-occluded) and <strong>1.38&nbsp;cm</strong> (occluded), on the official data split.</p>
+    <p><strong>Task 2 (Q2):</strong> a controlled encoder-swap study: replace only the visual encoder with vision foundation models (DINOv2, CLIP) and a modern supervised encoder (ConvNeXt-Tiny), holding data, split, inputs, head, loss, and evaluation fixed, so that test-MAE differences are attributable to the encoder alone.</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">2</span>Understanding the AutoFish paper</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>Fisheries science runs on fish lengths: they reveal how old fish populations are, whether stocks are healthy, and whether catches respect minimum sizes. Today a human puts each fish on a measuring board — slow, costly, stressful for the fish. AutoFish is a benchmark for doing this with a camera instead.</p>
+    <p>The paper's authors photographed <strong>454 real fish</strong> from above on a white table, in <strong>1,500 photos</strong>, and hand-measured every fish. The photos come in an easy flavor (fish laid out separately) and a hard flavor (fish piled up, hiding each other — like on a real boat). Their length-guessing program, built on a small network called MobileNetV2, made an average mistake of <strong>0.62&nbsp;cm on the easy photos</strong> and <strong>1.38&nbsp;cm on the hard ones</strong>. Those two numbers are my targets.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p><strong>Dataset:</strong> 1,500 top-view RGB images, 454 unique fish, 25 fish groups, 18,157 instance annotations (COCO-style: polygon segmentation, bbox, species, <code>fish_id</code>, hand-measured <code>length</code> in cm). Published on Hugging Face as <code>vapaau/autofish</code>.</p>
+    <p><strong>Image sets by file number:</strong> 00001–00020 = Set1, 00021–00040 = Set2 (both non-occluded singles), 00041–00060 = "All" (occluded piles). Each group was photographed across all sets.</p>
+    <p><strong>Paper baseline ("REG"):</strong> MobileNetV2 encoder on masked fish crops + bbox input + MLP head, L1 regression to length; reported MAE 0.62&nbsp;cm (Set1+Set2) / 1.38&nbsp;cm (All). The official training release (Bitbucket) defines the group split I adopt.</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">3</span>Setting up the workshop</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>Training neural networks needs a powerful graphics card, which my laptop doesn't have. So I work in two places: I write and organize all code on my Windows laptop in VS Code, and the heavy computation runs on a university server that I control remotely over an encrypted connection (SSH). Think of it as designing at my desk and sending jobs to a factory.</p>
+    <p>On the server I created an isolated Python environment — a clean toolbox containing exactly the software versions I need — so results don't change because some unrelated software got updated. After every experiment, I copy the small result files back to my laptop; the huge model files stay on the server.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p><strong>Local:</strong> Windows 11, VS Code, project at <code>Desktop/SEM3/AreaSeminar</code>, version-controlled with git.</p>
+    <p><strong>Server:</strong> university GPU node (<code>baltic.informatik.uni-rostock.de</code>), NVIDIA RTX 5000 Ada, 32&nbsp;GB VRAM; project mirrored at <code>~/autofish_baseline_repro</code>; Python 3.11 <code>venv</code> with PyTorch, Torchvision, OpenCLIP, pandas, NumPy, Pillow, scikit-learn, huggingface_hub, pycocotools (pinned in <code>requirements.txt</code>). Server default shell is tcsh, so commands are wrapped in <code>bash -lc</code>.</p>
+    <p><strong>Transfer:</strong> code up / results down via <code>scp</code> with a dedicated SSH key. Per run, only <code>test_metrics.json</code>, <code>history.csv</code>, and the predictions CSV come back (~0.5&nbsp;MB); checkpoints (~600&nbsp;MB) remain on the server.</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">4</span>Getting the data</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>The dataset is publicly hosted on Hugging Face (a kind of GitHub for AI datasets and models). I wrote a small script that downloads the complete package — about 16&nbsp;GB of photos plus one big annotation file that lists, for every fish in every photo: which fish it is, its species, exactly where it lies in the picture, its outline, and its true hand-measured length.</p>
+    <p>Using a script instead of clicking "download" matters: anyone can now fetch exactly the same data with one command, which is part of making the whole project repeatable.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p><code>scripts/download_autofish.py</code> calls <code>huggingface_hub.snapshot_download(repo_id="vapaau/autofish", repo_type="dataset")</code> into <code>data/raw/autofish</code> — a complete, versioned snapshot.</p>
+    <p>Payload: 1,500 images (60 per group × 25 groups) plus <code>annotations.json</code> (COCO format): <code>images</code> (id, file_name, group, width, height), <code>categories</code> (species), <code>annotations</code> (id, image_id, category_id, <code>fish_id</code>, <code>length</code>, <code>bbox</code> [x,y,w,h], polygon <code>segmentation</code>, <code>side_up</code>).</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">5</span>Building the master index</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>The raw annotation file is one giant nested document — hard to work with directly. So my first real processing step converts it into a clean spreadsheet with <strong>one row per fish-in-a-photo</strong> (18,157 rows). Each row holds everything the rest of the project needs: which photo, which group, which set (easy or hard), the species, the fish's identity number, its rectangle and outline, and the true length.</p>
+    <p>This one table becomes the single source of truth. Every later step — cutting crops, training, evaluating — reads from it, so there is no possibility of two parts of the project silently disagreeing about the data.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p><code>scripts/build_autofish_index.py</code> joins <code>annotations × images × categories</code> into <code>data/processed/index.csv</code> with columns: <code>annotation_id, image_id, file_name, image_path, group, split, set_name, species, fish_id, length_cm, bbox_x/y/w/h, segmentation, width, height, side_up</code>.</p>
+    <p>Two derived fields are computed here: <code>set_name</code> from the image number (1–20 Set1, 21–40 Set2, 41–60 All) and <code>split</code> from the group via the official split constant (Step 6). The script also writes <code>splits.json</code> (the split definition) and <code>exclusions.json</code> (the leakage log, Step 6) — machine-readable provenance for every data decision.</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">6</span>The anti-cheating audit — split &amp; leakage</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>To grade a model honestly, the final exam must contain only fish it has <strong>never seen</strong>. The trap: every physical fish appears in many photos. If photo A of a fish landed in the training pile and photo B of the same fish in the exam pile, the model could simply <em>remember that individual</em> — like recognizing a classmate rather than truly estimating size. This is called data leakage, and it silently inflates results.</p>
+    <p>The defense: fish are split by <strong>group</strong> — whole batches of fish go entirely to training, validation, or test. I additionally wrote an automatic check that verifies no fish identity crosses the boundary. It caught exactly one offender: fish number 113 appeared on both sides through a stray duplicate annotation. I removed the stray copy and the check now passes with zero leaks — and it re-runs every time the index is rebuilt, so leakage can never silently return.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p><strong>Official group-level split</strong> (from the release):<br>
+    train = {2,3,4,5,7,8,9,12,13,15,16,18,19,23,24} (15 groups)<br>
+    val = {1,6,11,17,25} · test = {10,14,20,21,22} (5 each).</p>
+    <p><strong>Leakage detection:</strong> group the index by <code>fish_id</code>, count distinct splits per fish; any count &gt; 1 is a leak. Found: <code>fish_id 113</code>. <strong>Resolution policy:</strong> keep the group(s) where the fish occurs most; drop the singleton duplicate's annotations (logged by <code>annotation_id</code> in <code>exclusions.json</code>). The script then re-checks and hard-fails (<code>SystemExit</code>) if any leak remains.</p>
+    <p><strong>Consequence:</strong> the non-occluded test subset has n = 1,879 instead of 1,880 — a documented, deliberate one-sample difference from the raw dataset. Validation n = 3,639; full test n = 3,759.</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">7</span>Cutting out the fish — preprocessing</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>The model never sees a whole table photo; it sees one fish at a time. For each of the 18,157 annotations I produce a small square picture of just that fish. Three refinements make these crops clean:</p>
+    <ul>
+      <li><strong>Everything that is not the fish is blacked out</strong>, using the fish's hand-drawn outline. Even when another fish overlaps it in the photo, the crop shows only the fish being measured, on black.</li>
+      <li>The cut-out window is made <strong>square</strong> around the fish's center, so that shrinking it later doesn't stretch the fish and distort its proportions — fatal for a length task.</li>
+      <li>All crops are shrunk to the same size (224×224 pixels), the standard input size these networks expect.</li>
+    </ul>
+    <p>Doing this once, up front, also makes training much faster: the expensive cutting work isn't repeated every epoch.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p><code>scripts/make_crops.py</code>, per annotation:</p>
+    <ol>
+      <li>Rasterize the polygon <code>segmentation</code> to a binary mask (PIL <code>ImageDraw.polygon</code>).</li>
+      <li>Paste the RGB image through the mask onto black — instance-masked image (<code>masking: "rgb"</code> in configs).</li>
+      <li>Compute the tight mask bbox, expand to a <strong>square</strong> of side <code>max(w,h)</code> about the mask centroid; crop with black padding where the square exits the image (aspect-ratio preserving).</li>
+      <li>Bilinear-resize to 224×224; save as <code>data/processed/crops/{annotation_id:06d}.png</code>.</li>
+    </ol>
+    <p>Idempotent (skips existing files), verified complete by <code>scripts/check_processed.py</code>: 18,157 crops, 0 missing. Note the masking is what isolates the target fish under occlusion — the network sees the visible pixels of exactly one fish.</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">8</span>Defining success — the metrics</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>The headline number is beautifully simple: <strong>on average, by how many centimetres is the model wrong?</strong> Predict 30.5&nbsp;cm for a 31&nbsp;cm fish → error 0.5&nbsp;cm. Average over all ~3,800 exam fish → the MAE. Smaller is better, and it's the same number the paper reports, so comparison is direct.</p>
+    <p>I track four helpers alongside: one that punishes big blunders extra hard (RMSE), the error as a percentage of fish size (MAPE), whether the model systematically guesses too long or too short (bias), and how much of the size variation it explains overall (R², where 1.0 is perfect). And every result is always reported three ways: easy photos, hard photos, and both together.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p><code>src/autofish_vfm/metrics.py</code>, on (y_true, y_pred) in cm:</p>
+    <ul>
+      <li><strong>MAE</strong> = mean |ŷ−y| — primary, paper-comparable.</li>
+      <li><strong>RMSE</strong> = √mean((ŷ−y)²) — outlier-sensitive.</li>
+      <li><strong>MAPE</strong> = mean(|ŷ−y|/y)·100 — scale-relative.</li>
+      <li><strong>Bias</strong> = mean(ŷ−y) — signed systematic offset.</li>
+      <li><strong>R²</strong> = 1 − SS<sub>res</sub>/SS<sub>tot</sub>.</li>
+    </ul>
+    <p>Evaluation subsets (<code>evaluate.py</code>): <code>test_all</code> (n=3,759), <code>non_occluded_set1_set2</code> (n=1,879), <code>occluded_all</code> (n=1,880). Per-fish predictions are also dumped to <code>test_metrics.predictions.csv</code> (annotation_id, fish_id, group, set, species, truth, prediction) — the raw material for future error analysis.</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">9</span>Designing the model</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>Every model in this project is the same three-part machine; only part one changes between experiments:</p>
+    <ol>
+      <li><strong>The eye (encoder):</strong> a pretrained network that turns the fish picture into a list of numbers summarizing what it sees. <em>This is the only part I swap.</em></li>
+      <li><strong>The hint:</strong> four numbers describing where and how big the fish's rectangle was in the original photo. Why? Because the crop was resized, the picture alone no longer says how large the fish really was — the rectangle restores the true scale. The paper's baseline uses this too.</li>
+      <li><strong>The decision-maker (head):</strong> a small network that combines eye + hint into one number: length in cm.</li>
+    </ol>
+    <p>Because parts two and three are identical everywhere, any difference in the final score is caused by the eye — which is precisely the research question.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p><code>src/autofish_vfm/models.py</code> — shared contract: <code>forward((image, bbox)) → length</code>. Encoder → feature vector, concatenated with bbox = (x/W, y/H, w/W, h/H), fed to an MLP head of Linear→BatchNorm1d→ReLU blocks, final Linear→1.</p>
+    <table>
+      <tr><th>Variant</th><th>Encoder / features</th><th class="num">Dim</th><th>Head</th></tr>
+      <tr><td>Baseline</td><td>MobileNetV2, ImageNet-V1, classifier stripped</td><td class="num">1280</td><td>[1000, 500, 1]</td></tr>
+      <tr><td>ConvNeXt</td><td>ConvNeXt-Tiny, ImageNet-V1, classifier→Identity</td><td class="num">768</td><td>[512, 128, 1]</td></tr>
+      <tr><td>CLIP</td><td>OpenCLIP ViT-B/32 (openai), <code>encode_image</code></td><td class="num">512</td><td>[512, 128, 1]</td></tr>
+      <tr><td>DINOv2</td><td>torch.hub <code>dinov2_vits14</code>, CLS token</td><td class="num">384</td><td>[512, 128, 1]</td></tr>
+    </table>
+    <p><strong>Adaptation modes</strong> (per config): <em>frozen</em> (encoder in eval mode, <code>requires_grad=False</code>, features under <code>no_grad</code>); <em>partial</em> (only the last transformer block + final norm/projection trainable); <em>full</em> (everything trainable, optionally with a separate encoder learning rate via optimizer param-groups).</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">10</span>The training procedure</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>Training is a loop: show the model a batch of fish, let it guess, measure how wrong it is, nudge its internal dials to be slightly less wrong, repeat. One pass through all ~11,000 training fish is an "epoch"; the baseline trains for 200 of them.</p>
+    <p>Three safeguards make this rigorous:</p>
+    <ul>
+      <li><strong>A referee set:</strong> after every epoch the model is scored on validation fish it never trains on. The version that scores best there is the one kept — this prevents picking a version that merely memorized the training fish.</li>
+      <li><strong>Color shuffling:</strong> during training, each photo's colors are randomly jittered, teaching the model that lighting doesn't change a fish's length.</li>
+      <li><strong>Smoke tests:</strong> before any multi-hour run, a miniature 2-epoch version runs first to catch bugs cheaply. Every full run cost hours; every bug caught by a smoke test cost minutes.</li>
+    </ul>
+    <p>And everything is written down: a fixed random seed, one config file per experiment listing every setting, and a per-epoch logbook.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p><code>src/autofish_vfm/train_baseline.py</code>:</p>
+    <ul>
+      <li>Seeding: <code>random</code>/<code>numpy</code>/<code>torch(.cuda)</code> all seeded (42).</li>
+      <li>Data: train loader shuffled, ColorJitter(brightness .2, contrast .5, saturation .4, hue .3) train-only; ImageNet normalization; <code>pin_memory</code> on CUDA.</li>
+      <li>Optimization: L1 loss, Adam. Baseline: LR 1e-3, batch 32, 200 epochs. Encoder swaps: LR 1e-4, batch 16, 100 epochs. DINOv2 full fine-tune uses two param-groups: encoder LR 1e-5 or 1e-6, head LR 1e-4.</li>
+      <li>Checkpointing: <code>last.pt</code> every epoch; <code>best.pt</code> whenever validation MAE improves → model selection on val, never on test.</li>
+      <li>Logging: per-epoch JSON line + full <code>history.csv</code> (train loss + all val metrics). Baseline history: val MAE 4.22&nbsp;cm after epoch 1 → ~0.83&nbsp;cm by epoch 200.</li>
+      <li>Smoke configs (<code>*_smoke.json</code>) cap <code>max_train_batches</code>/<code>max_val_batches</code> and epochs for cheap end-to-end validation.</li>
+      <li>Partial fine-tunes warm-start from the frozen run's best checkpoint (<code>resume_checkpoint</code>).</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">11</span>Experiment 1 — reproducing the baseline</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>The moment of truth: train MobileNetV2 exactly as described, evaluate on the untouched exam fish. <strong>Paper: 0.62&nbsp;cm. Me: 0.633&nbsp;cm.</strong> A tenth of a millimetre apart — reproduction successful. My entire laboratory is calibrated; every later comparison stands on this.</p>
+    <p>One honest surprise: on the <em>hard</em> overlapping-fish photos I scored <strong>0.909&nbsp;cm where the paper reports 1.38&nbsp;cm</strong> — noticeably better than the original. I don't hide this or claim credit for it; papers rarely specify every training detail, and mine likely differs somewhere (data augmentation, checkpoint choice, my leakage cleanup). It's flagged as an open question to investigate — that transparency <em>is</em> good scientific practice.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p>Config <code>baseline_official.json</code>: MobileNetV2, ImageNet-pretrained, full fine-tune, head [1000,500,1], L1, Adam 1e-3, batch 32, 200 epochs, 224², bbox input, seed 42. Run: <code>runs/baseline_official</code>.</p>
+    <table>
+      <tr><th>Test subset</th><th class="num">MAE</th><th class="num">RMSE</th><th class="num">MAPE</th><th class="num">Bias</th><th class="num">R²</th><th class="num">n</th></tr>
+      <tr><td>Non-occluded</td><td class="num"><strong>0.633</strong></td><td class="num">1.027</td><td class="num">1.96%</td><td class="num">+0.080</td><td class="num">0.965</td><td class="num">1,879</td></tr>
+      <tr><td>Occluded</td><td class="num"><strong>0.909</strong></td><td class="num">1.470</td><td class="num">2.86%</td><td class="num">−0.009</td><td class="num">0.929</td><td class="num">1,880</td></tr>
+      <tr><td>Full test</td><td class="num"><strong>0.771</strong></td><td class="num">1.268</td><td class="num">2.41%</td><td class="num">+0.035</td><td class="num">0.947</td><td class="num">3,759</td></tr>
+    </table>
+    <p>Δ vs paper: +0.013&nbsp;cm non-occluded (≈2% relative) — within implementation noise. Occluded −0.47&nbsp;cm vs paper (better); candidate explanations: unspecified augmentation/selection details in the paper, leakage cleanup. Bias ≈ 0 → no systematic over/underestimation; near-zero occluded bias with higher MAE = symmetric error inflation under occlusion, as expected from hidden fish extents.</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">12</span>What foundation models are — and the fairness rules</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>A <strong>vision foundation model</strong> is a giant network pretrained on enormous image collections until it acquires a broad, general "understanding" of pictures — learned once, reused everywhere. I tested two famous ones: <strong>DINOv2</strong> (Meta — learned from images alone, no labels, by teaching itself which views belong to the same image) and <strong>CLIP</strong> (OpenAI — learned from 400 million internet image–caption pairs, connecting pictures to words).</p>
+    <p>The analogy: MobileNetV2 is a tailor's apprentice I train for one job. A foundation model is a world-famous professor of seeing-in-general. Does the professor out-measure the trained apprentice?</p>
+    <p>Each giant gets three chances: <strong>frozen</strong> (use its knowledge as-is, train only the small decision-maker), <strong>gently adapted</strong> (unfreeze just its last layer), and <strong>fully retrained</strong>. And the fairness rule stands: same fish crops, same split, same hint, same decision-maker, same training budget class, same exam.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p><strong>DINOv2 ViT-S/14</strong> (via torch.hub): self-supervised (DINO/iBOT objectives), 21M-param vision transformer, 14×14 patches; I use the CLS token (384-d) as the global feature.</p>
+    <p><strong>CLIP ViT-B/32</strong> (OpenCLIP, "openai" weights): contrastive image–text pretraining on ~400M pairs; <code>encode_image</code> yields the 512-d projected embedding.</p>
+    <p><strong>Controlled-variable design:</strong> identical index/crops/split, identical bbox input, same head family [512,128,1], L1 + Adam, 224² inputs, 100 epochs, seed 42. Adaptation ladder per encoder: frozen → last-block (warm-started from the frozen best checkpoint) → full fine-tune (DINOv2 only, with encoder-specific LRs). Deliberately <em>no</em> per-encoder hyperparameter search — tuning effort would otherwise confound encoder quality (acknowledged as a design trade-off in Step 19).</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">13</span>Experiments 2–5 — the DINOv2 saga</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p><strong>Attempt 1 — frozen:</strong> 1.738&nbsp;cm average error. More than double the baseline's 0.771. The professor, unadapted, is bad at this job.</p>
+    <p><strong>Attempt 2 — full retraining (careful pace):</strong> 1.778&nbsp;cm. Retraining everything didn't help; with only ~11,000 training fish, a transformer this size wobbles rather than converges nicely.</p>
+    <p><strong>Attempt 3 — full retraining (ultra-careful pace):</strong> 2.132&nbsp;cm — the worst result of the whole project. Fascinating failure: being <em>too</em> cautious meant the encoder changed just enough to disturb its pretrained knowledge, but not enough to learn the new task.</p>
+    <p><strong>Attempt 4 — unfreeze only the last layer:</strong> 1.439&nbsp;cm. Best DINOv2 result. Still nearly twice the baseline's error.</p>
+    <p><strong>Verdict:</strong> across four escalating attempts, DINOv2 never came close. Its knowledge answers "<em>what</em> is this?"; our task asks "<em>exactly how big</em> is this?" — a different skill.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <table>
+      <tr><th>Run</th><th>Adaptation</th><th class="num">Non-occ.</th><th class="num">Occl.</th><th class="num">Full</th></tr>
+      <tr><td><code>dinov2_vits14_frozen</code></td><td>head only</td><td class="num">1.690</td><td class="num">1.786</td><td class="num">1.738</td></tr>
+      <tr><td><code>…finetune_lr1e5</code></td><td>full, enc LR 1e-5</td><td class="num">1.636</td><td class="num">1.919</td><td class="num">1.778</td></tr>
+      <tr><td><code>…finetune_lr1e6</code></td><td>full, enc LR 1e-6</td><td class="num">2.075</td><td class="num">2.189</td><td class="num">2.132</td></tr>
+      <tr><td><code>…lastblock_from_frozen</code></td><td>last block + norm</td><td class="num"><strong>1.340</strong></td><td class="num"><strong>1.537</strong></td><td class="num"><strong>1.439</strong></td></tr>
+    </table>
+    <p><strong>Reading:</strong> (a) CLS-token features are optimized for semantic invariance, discarding the fine metric-spatial information a mm-level regressor needs; (b) full ViT fine-tuning on ~11k samples is unstable — LR 1e-5 traded non-occluded gains for occluded degradation, LR 1e-6 underperformed even frozen features; (c) constrained adaptation (last block, warm-started) dominated both full-FT settings — a classic small-data transfer result.</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">14</span>Experiments 6–7 — CLIP, the surprise</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p><strong>Frozen CLIP: 1.002&nbsp;cm</strong> — massively better than frozen DINOv2 (1.738), with the identical setup. First real discovery: <em>not all giants are equal for this task</em>. CLIP grew up connecting images to words like "a large salmon" — plausibly forcing its features to keep more size-and-shape information. That's my hypothesis, stated as one.</p>
+    <p><strong>Gently adapted CLIP: 0.958&nbsp;cm</strong> — within touching distance of the baseline (0.771), but still behind. A foundation model got competitive; none got ahead.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <table>
+      <tr><th>Run</th><th>Adaptation</th><th class="num">Non-occ.</th><th class="num">Occl.</th><th class="num">Full</th></tr>
+      <tr><td><code>clip_vitb32_frozen</code></td><td>head only</td><td class="num">0.898</td><td class="num">1.106</td><td class="num">1.002</td></tr>
+      <tr><td><code>clip_vitb32_lastblock_from_frozen</code></td><td>last resblock + ln_post + proj</td><td class="num"><strong>0.842</strong></td><td class="num"><strong>1.074</strong></td><td class="num"><strong>0.958</strong></td></tr>
+    </table>
+    <p>Best val MAE 1.003&nbsp;cm at epoch 11 (early — the warm-started partial FT converges fast, then overfits mildly; best-checkpoint selection handles this). The frozen-CLIP vs frozen-DINOv2 gap (0.74&nbsp;cm full-test) under identical protocol is the project's cleanest evidence that pretraining objective/data — not just architecture scale — governs transfer to metric regression. Mechanism unverified: would require representation-level probing (future work).</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">15</span>Experiment 8 — ConvNeXt-Tiny, the strongest challenger</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>The pattern so far — classic supervised training wins — suggested testing a <em>modern</em> network of the same school: ConvNeXt-Tiny (2022), trained on ImageNet like MobileNetV2 but with a decade-newer design, fully retrained for our task like the baseline was.</p>
+    <p><strong>Result: 0.914&nbsp;cm</strong> — best non-baseline model, beating both CLIPs. Yet the punchline holds: the humble MobileNetV2 stays number one at 0.771&nbsp;cm. Even a newer, bigger network of the same family didn't dethrone it — at least not at this size and with this shared training recipe.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p>Config <code>convnext_tiny_official.json</code>: ConvNeXt-Tiny (28M params vs MobileNetV2's 3.5M), ImageNet-V1, full FT, head [512,128,1], Adam 1e-4, batch 16, 100 epochs. Best val MAE 0.922&nbsp;cm at epoch 83.</p>
+    <table>
+      <tr><th>Subset</th><th class="num">MAE</th><th class="num">RMSE</th><th class="num">MAPE</th><th class="num">Bias</th><th class="num">R²</th></tr>
+      <tr><td>Non-occluded</td><td class="num">0.814</td><td class="num">1.181</td><td class="num">2.50%</td><td class="num">+0.136</td><td class="num">0.954</td></tr>
+      <tr><td>Occluded</td><td class="num">1.014</td><td class="num">1.479</td><td class="num">3.15%</td><td class="num">+0.127</td><td class="num">0.928</td></tr>
+      <tr><td>Full test</td><td class="num">0.914</td><td class="num">1.338</td><td class="num">2.82%</td><td class="num">+0.131</td><td class="num">0.941</td></tr>
+    </table>
+    <p>Caveat for fairness: ConvNeXt ran the swap-recipe (LR 1e-4, 100 ep), the baseline its paper recipe (LR 1e-3, 200 ep) — part of the remaining 0.14&nbsp;cm gap could be recipe, not architecture. This is exactly what the planned multi-seed + recipe-matched reruns will resolve.</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">16</span>The final ranking &amp; what it means</h2>
+
+<table>
+  <tr><th class="num">#</th><th>Model</th><th>Family</th><th class="num">Non-occ. MAE</th><th class="num">Occl. MAE</th><th class="num">Full-test MAE</th></tr>
+  <tr><td class="num">—</td><td><em>Paper REG MobileNetV2 (reference)</em></td><td>supervised CNN</td><td class="num"><em>0.62</em></td><td class="num"><em>1.38</em></td><td class="num">—</td></tr>
+  <tr style="background:#eef3fb;"><td class="num">1</td><td><strong>MobileNetV2 (our reproduction)</strong></td><td>supervised CNN</td><td class="num"><strong>0.633</strong></td><td class="num"><strong>0.909</strong></td><td class="num"><strong>0.771</strong></td></tr>
+  <tr><td class="num">2</td><td>ConvNeXt-Tiny, full FT</td><td>supervised CNN</td><td class="num">0.814</td><td class="num">1.014</td><td class="num">0.914</td></tr>
+  <tr><td class="num">3</td><td>CLIP ViT-B/32, last-block FT</td><td>vision–language</td><td class="num">0.842</td><td class="num">1.074</td><td class="num">0.958</td></tr>
+  <tr><td class="num">4</td><td>CLIP ViT-B/32, frozen</td><td>vision–language</td><td class="num">0.898</td><td class="num">1.106</td><td class="num">1.002</td></tr>
+  <tr><td class="num">5</td><td>DINOv2 ViT-S/14, last-block FT</td><td>self-supervised</td><td class="num">1.340</td><td class="num">1.537</td><td class="num">1.439</td></tr>
+  <tr><td class="num">6</td><td>DINOv2 ViT-S/14, frozen</td><td>self-supervised</td><td class="num">1.690</td><td class="num">1.786</td><td class="num">1.738</td></tr>
+  <tr><td class="num">7</td><td>DINOv2, full FT (enc LR 1e-5)</td><td>self-supervised</td><td class="num">1.636</td><td class="num">1.919</td><td class="num">1.778</td></tr>
+  <tr><td class="num">8</td><td>DINOv2, full FT (enc LR 1e-6)</td><td>self-supervised</td><td class="num">2.075</td><td class="num">2.189</td><td class="num">2.132</td></tr>
+</table>
+
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>Three lessons, in ascending order of importance:</p>
+    <ol>
+      <li><strong>Overlapping fish hurt every model</strong> — the baseline's error grows ~44% from easy to hard photos. Occlusion is where real-world improvement is needed.</li>
+      <li><strong>Not all giants are equal:</strong> CLIP transferred far better than DINOv2 under identical conditions — <em>how</em> a model was pretrained matters more than that it is big.</li>
+      <li><strong>Bigger and newer is not automatically better.</strong> For a precision measuring task, a small network trained end-to-end for exactly this job beat every general-purpose giant we tried. General "understanding" of images and millimetre-precise measurement are different skills.</li>
+    </ol>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p>The ranking is perfectly stratified by family: fully fine-tuned supervised CNNs (ranks 1–2) &gt; CLIP (3–4) &gt; DINOv2 (5–8). Scoped claim: <em>at the model scales tested (ViT-S/14, ViT-B/32, Tiny), with a shared training budget and no per-encoder tuning, on this dataset</em>, task adaptation dominates pretraining pedigree for metric length regression. Family-level gaps (≥0.7&nbsp;cm CNN↔DINOv2) far exceed plausible seed noise; within-family gaps (0.14&nbsp;cm MobileNetV2↔ConvNeXt) await multi-seed confirmation. Consistent secondary signal: all models degrade under occlusion (masked crops mitigate but can't restore hidden fish extents).</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">17</span>Good scientific practice, built in from the start</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <ul>
+      <li><strong>Repeatable:</strong> one command re-downloads the data; one config file per experiment records every setting; fixed random seed; anyone can redo any run.</li>
+      <li><strong>Honest:</strong> the exam fish were never used for any decision; the one leakage case was found, fixed, and documented; the result that's <em>better</em> than the paper is reported as openly as the ones that are worse.</li>
+      <li><strong>Fair:</strong> all models compared under identical conditions, and where a condition differs (the baseline's own recipe), it's stated.</li>
+      <li><strong>Disclosed:</strong> AI tools assisted with code scaffolding and drafting; all experiments, numbers, and conclusions are my own and verified by me — disclosed per course policy.</li>
+    </ul>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <ul>
+      <li>Provenance artifacts: <code>splits.json</code>, <code>exclusions.json</code>, per-run <code>config.json</code> (re-serialized into each run dir), <code>history.csv</code>, <code>test_metrics.json</code>, per-fish predictions CSV.</li>
+      <li>Model selection strictly on validation MAE; test touched once per model.</li>
+      <li>Environment pinned via <code>requirements.txt</code>; hardware documented.</li>
+      <li>Leakage check is a hard assertion in the pipeline — it cannot regress silently.</li>
+      <li>Threats to validity enumerated (single seed, no per-encoder tuning, small FM variants, shared bbox prior) rather than hidden.</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">18</span>Deliverables &amp; repository</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <p>Everything is public on GitHub: the code, all experiment configurations, all result files, the documentation, and the seminar poster. Only three things are excluded: the 16&nbsp;GB dataset (one script re-downloads it), the huge trained-model files (they live on the server), and private access keys.</p>
+    <p>Also prepared: an A3 poster built around one main result figure, and a rehearsed one-minute presentation with prepared answers for the question round.</p>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p><a href="https://github.com/Shahman-Butt/AreaSeminarFishLength">github.com/Shahman-Butt/AreaSeminarFishLength</a>:</p>
+    <ul>
+      <li><code>src/autofish_vfm/</code> — data, models, train, evaluate, metrics</li>
+      <li><code>scripts/</code> — download, index build (+leakage audit), crop generation, checks</li>
+      <li><code>configs/</code> — 14 experiment configs incl. smoke variants</li>
+      <li><code>runs/</code> — metrics, training histories, per-fish predictions for all 8 experiments</li>
+      <li><code>data/processed/</code> — index.csv, splits.json, exclusions.json</li>
+      <li><code>poster/</code> — A3 poster (print-ready HTML) + presentation prep</li>
+      <li>Docs: README, full report, summary guide, handoff log</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">19</span>What remains open (say it before being asked)</h2>
+<div class="cols">
+  <div class="lay"><h4>🗣 In plain words</h4>
+    <ol>
+      <li><strong>Every result is one training run.</strong> The huge gaps are certainly real; the small ones (baseline vs ConvNeXt) should be confirmed by repeating with three different random seeds.</li>
+      <li><strong>EfficientNet-B0 is next</strong> — the logical next member of the winning supervised family.</li>
+      <li><strong>Error analysis:</strong> which species, which sizes, which occlusion situations cause the biggest mistakes? The per-fish prediction files are already saved for exactly this.</li>
+      <li><strong>The occluded-result mystery</strong> (mine better than the paper's) deserves a comparison against the official code.</li>
+      <li>Only small foundation-model variants were tested; larger ones (or smarter adaptation like LoRA) could change the picture — an honest boundary of my claims.</li>
+    </ol>
+  </div>
+  <div class="tech"><h4>⚙ Technical detail</h4>
+    <p>Planned protocol: (1) EfficientNet-B0, ImageNet, swap-recipe config for direct comparability; (2) 3-seed reruns of MobileNetV2 / ConvNeXt-Tiny / best EfficientNet → report mean ± std, assess whether the 0.14&nbsp;cm gap exceeds seed variance; (3) stratified error analysis from the saved predictions CSVs (species × length-decile × set), worst-case gallery; (4) recipe-matched control (ConvNeXt at LR 1e-3/200ep or baseline at LR 1e-4/100ep) to separate architecture from recipe effects; (5) optional: DINOv2 with register tokens / larger CLIP, parameter-efficient fine-tuning.</p>
+  </div>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="step">
+<h2><span class="stepno">20</span>Glossary &amp; appendix</h2>
+
+<h3>Glossary (for the layman half of your brain)</h3>
+<table>
+  <tr><th>Term</th><th>Meaning</th></tr>
+  <tr><td>Annotation</td><td>One fish in one photo, with its outline, rectangle, species, identity, and true length.</td></tr>
+  <tr><td>Bounding box (bbox)</td><td>The rectangle enclosing a fish in the original photo; its 4 numbers are the "scale hint".</td></tr>
+  <tr><td>CNN</td><td>Convolutional neural network — the classic image-network design (MobileNetV2, ConvNeXt).</td></tr>
+  <tr><td>Data leakage</td><td>Test information sneaking into training — here: the same fish on both sides of the split.</td></tr>
+  <tr><td>Encoder</td><td>The "eye": the network part that turns an image into a feature vector.</td></tr>
+  <tr><td>Epoch</td><td>One full pass through all training examples.</td></tr>
+  <tr><td>Fine-tuning</td><td>Continuing to train a pretrained network on the new task (fully or partially).</td></tr>
+  <tr><td>Foundation model</td><td>Very large network pretrained on massive data for general reuse (DINOv2, CLIP).</td></tr>
+  <tr><td>Frozen</td><td>Encoder weights locked; only the small head is trained.</td></tr>
+  <tr><td>MAE</td><td>Mean absolute error — average mistake in cm; the headline metric.</td></tr>
+  <tr><td>Occluded</td><td>Fish partially hidden by other fish (the "All" image set).</td></tr>
+  <tr><td>Regression head</td><td>The small final network producing the length number.</td></tr>
+  <tr><td>Seed</td><td>Fixed starting point for randomness, making runs repeatable.</td></tr>
+  <tr><td>Smoke test</td><td>Tiny cheap trial run to catch bugs before an expensive full run.</td></tr>
+  <tr><td>Validation set</td><td>Held-out referee data used to pick the best model version — distinct from the test set.</td></tr>
+  <tr><td>ViT</td><td>Vision transformer — the architecture underlying DINOv2 and CLIP's image side.</td></tr>
+</table>
+
+<h3>Appendix — every experiment at a glance (MAE cm)</h3>
+<table>
+  <tr><th>Run directory</th><th>Encoder</th><th>Adaptation</th><th class="num">LR</th><th class="num">Ep.</th><th class="num">Non-occ.</th><th class="num">Occl.</th><th class="num">Full</th></tr>
+  <tr><td>baseline_official</td><td>MobileNetV2</td><td>full FT</td><td class="num">1e-3</td><td class="num">200</td><td class="num">0.633</td><td class="num">0.909</td><td class="num">0.771</td></tr>
+  <tr><td>convnext_tiny_official</td><td>ConvNeXt-Tiny</td><td>full FT</td><td class="num">1e-4</td><td class="num">100</td><td class="num">0.814</td><td class="num">1.014</td><td class="num">0.914</td></tr>
+  <tr><td>clip_vitb32_lastblock_from_frozen</td><td>CLIP ViT-B/32</td><td>last block</td><td class="num">1e-4</td><td class="num">100</td><td class="num">0.842</td><td class="num">1.074</td><td class="num">0.958</td></tr>
+  <tr><td>clip_vitb32_frozen</td><td>CLIP ViT-B/32</td><td>frozen</td><td class="num">1e-4</td><td class="num">100</td><td class="num">0.898</td><td class="num">1.106</td><td class="num">1.002</td></tr>
+  <tr><td>dinov2_vits14_lastblock_from_frozen</td><td>DINOv2 ViT-S/14</td><td>last block</td><td class="num">1e-4</td><td class="num">100</td><td class="num">1.340</td><td class="num">1.537</td><td class="num">1.439</td></tr>
+  <tr><td>dinov2_vits14_frozen</td><td>DINOv2 ViT-S/14</td><td>frozen</td><td class="num">1e-4</td><td class="num">100</td><td class="num">1.690</td><td class="num">1.786</td><td class="num">1.738</td></tr>
+  <tr><td>dinov2_vits14_finetune_lr1e5</td><td>DINOv2 ViT-S/14</td><td>full FT</td><td class="num">enc 1e-5</td><td class="num">100</td><td class="num">1.636</td><td class="num">1.919</td><td class="num">1.778</td></tr>
+  <tr><td>dinov2_vits14_finetune_lr1e6</td><td>DINOv2 ViT-S/14</td><td>full FT</td><td class="num">enc 1e-6</td><td class="num">100</td><td class="num">2.075</td><td class="num">2.189</td><td class="num">2.132</td></tr>
+</table>
+
+<div class="highlight">
+  <h3>The whole project in three sentences</h3>
+  <p>I reproduced the AutoFish MobileNetV2 length-regression baseline to within 0.013&nbsp;cm of the published result, validating my entire pipeline. I then swapped only the image encoder — four DINOv2 variants, two CLIP variants, and ConvNeXt-Tiny — under strictly identical conditions, and every alternative lost to the baseline: DINOv2 badly, CLIP narrowly, ConvNeXt closest. Based on current evidence, task-adapted supervised encoders beat general foundation features for precise fish length regression — with multi-seed validation, EfficientNet, and error analysis as the defined next steps.</p>
+</div>
+</div>
+
+</body>
+</html>
