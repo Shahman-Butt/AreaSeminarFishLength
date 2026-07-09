@@ -1,0 +1,450 @@
+================================================================================
+  SEMINAR PROJECT NOTES — FISH LENGTH ESTIMATION WITH VFMs
+  Deep Learning for Maritime Vision Applications
+  Supervisor: Bohan Zhuang (bohan.zhuang@uni-rostock.de)
+  University of Rostock
+================================================================================
+
+PURPOSE OF THIS FILE
+--------------------
+A complete summary of the conversation so far. Use it as a single reference
+for future meetings, before reading the longer documents, or when picking up
+the project after a break. Keep it open next to the slide deck.
+
+
+================================================================================
+PART A — THE TASK IN ONE PAGE
+================================================================================
+
+PROBLEM
+  Fish on commercial boats and in research surveys are measured by hand,
+  which is slow, repetitive, and expensive. Length data matters for stock
+  assessment, legal minimum sizes, and fisheries management. Automating the
+  measurement using a camera + AI would scale much better.
+
+WHAT THE SEMINAR ASKS (verbatim, decoded into 3 sub-questions)
+  "How well does an established deep learning baseline perform for fish
+   length estimation, and does replacing its encoder with a Vision
+   Foundation Model (VFM) improve performance, in particular when labeled
+   data are limited?"
+
+  Q1  Reproduce the published baseline on the AutoFish dataset.
+  Q2  Replace the encoder (MobileNetV2) with a VFM (e.g. DINOv2). Compare.
+  Q3  Repeat the comparison under reduced training data. THIS IS THE
+      HEADLINE EXPERIMENT — the "in particular" clause is the heart of it.
+
+OPTIONAL EXTENSION
+  Test transfer to a second fish dataset (the North Sea dataset) if it
+  becomes available during the project.
+
+DATASET — AutoFish (Bengtson et al., WACVW 2025)
+  https://huggingface.co/datasets/vapaau/autofish
+
+PRIMARY METRIC
+  Mean Absolute Error (MAE) in cm, reported separately on:
+    - non-occluded fish (Set1 + Set2)
+    - occluded fish (All)
+
+BAR TO BEAT
+  Published baseline: MAE 0.62 cm (no-occlusion) / 1.38 cm (occluded)
+
+
+================================================================================
+PART B — KEY CONCEPTS, IN PLAIN LANGUAGE
+================================================================================
+
+REGRESSION vs CLASSIFICATION
+  Classification picks a category. Regression outputs a continuous number.
+  This project is regression — predicting length in cm.
+
+ENCODER + HEAD
+  Every modern vision network has two parts:
+    Encoder (backbone) — big, turns image into a summary of numbers.
+    Head — small, turns the summary into the final answer.
+  This project swaps ONLY the encoder.
+
+PRETRAINING / TRANSFER LEARNING
+  Networks are first trained on large general datasets (e.g. ImageNet),
+  then fine-tuned to the specific task. Much better than training from
+  scratch when our own data is small.
+
+FINE-TUNING vs FREEZING
+  Fine-tuning: continue training the pretrained encoder on our data.
+  Freezing: keep encoder fixed, only train the small head. Good when
+  labels are few.
+
+VISION FOUNDATION MODELS (VFMs)
+  Newer, larger pretrained encoders trained self-supervised on hundreds of
+  millions of unlabelled images.
+    DINOv2 / DINOv3 (Meta)   — current default first choice
+    SAM / SAM 2 image enc.   — shape-aware, good for measurement
+    CLIP                     — more semantic, less geometric
+  Claim: features so rich that you often get good results with a frozen
+  encoder and a tiny head. Should especially help when labels are scarce.
+
+SELF-SUPERVISED LEARNING
+  Train on images alone, no human labels. Typical trick: mask part of an
+  image and ask the model to fill it in. The model accidentally learns
+  rich features.
+
+INSTANCE SEGMENTATION MASK
+  A pixel-precise outline of one object in an image. AutoFish provides
+  one for every fish.
+
+OCCLUSION
+  When one fish partially covers another. AutoFish's "All" subsets are
+  deliberately full of occlusion.
+
+GROUP-LEVEL SPLIT (most important practical concept)
+  Each individual fish in AutoFish appears in exactly ONE of 25 groups.
+  Splitting by group ensures no fish leaks across train/val/test.
+  Splitting by image would let the model memorize individual fish.
+
+
+================================================================================
+PART C — PAPER 1: AutoFish (Bengtson et al., WACVW 2025)
+================================================================================
+
+WHAT IT IS
+  A new public fish-image dataset + two example methods (segmentation +
+  length estimation). arXiv:2501.03767.
+
+DATASET FACTS
+  Images           1,500 RGB, 2464 × 2056 px
+  Unique fish      454
+  Instance masks   18,160
+  Groups           25 (14–24 fish per group)
+  Species          cod, haddock, whiting, hake, horse mackerel
+  Length labels    measured by marine biologist, rounded to nearest 5 mm
+  Camera           Jai GO-5100C-USB + KOWA LM12HC lens, 1.5 m above belt
+  Calibration      20 checkerboard images per group (20 mm squares)
+
+THREE SUBSETS PER GROUP (gives 60 images × 25 groups = 1,500)
+  Set1   half the fish, no overlap, 20 photos.
+  Set2   other half, no overlap, 20 photos.
+  All    every fish in group, deliberately overlapping, 20 photos.
+
+THE GROUP STRUCTURE — KEY POINT
+  Each fish only ever appears in one group. Splitting by group prevents
+  leakage. Splitting by image creates leakage. Mention this in the meeting.
+
+BASELINE 1 — SKL (no learning)
+  Skeletonize the mask, fit a 4th-degree polynomial along the centerline,
+  measure length in pixels, convert to cm via calibration. Classical
+  image processing.
+
+BASELINE 2 — REG (THE one I have to reproduce)
+  Crop fish from bounding box of mask, blackout outside.
+  → MobileNetV2 encoder (ImageNet-pretrained)
+  → FC head (2 layers) + bounding-box coordinates as extra input
+  → output: length in cm
+  Training: L1 loss, Adam, LR 0.001, batch 32, 200 epochs.
+  Augmentation: only contrast/brightness/saturation (no geometric — would
+  break the implicit pixel-to-cm relationship).
+
+REPORTED RESULTS
+  REG on Set1/Set2 (no-occlusion):   MAE 0.62 cm
+  REG on All (occluded):             MAE 1.38 cm
+  These are the numbers my reproduction must approach.
+
+
+================================================================================
+PART D — PAPER 2: Herrmann et al. (2024)
+================================================================================
+
+WHAT IT IS
+  "Can automatic measuring replace humans when evaluating a shrimp
+   fishery?" Regional Studies in Marine Science, vol. 79, art. 103852.
+  Not a CV-benchmark paper — a fisheries-science paper asking a
+  practical management question.
+
+QUESTION
+  Can a camera + AI replace manual calliper measurements of shrimp
+  carapace length, while still giving valid scientific conclusions for
+  stock assessment, gear-selectivity studies, and compliance monitoring?
+
+EXPERIMENT
+  Real research cruise (R/V Helmer Hanssen, Barents Sea, Feb 2023).
+  2,167 deep-water shrimp (Pandalus borealis), each measured BOTH
+  manually (calliper) and automatically (camera).
+  Camera: off-the-shelf Intel RealSense D405 (RGB + depth).
+
+CLEVER METHOD
+  Don't measure length directly — too sensitive to segmentation errors
+  at the carapace endpoints. Instead:
+    1. AI segments the shrimp.
+    2. Compute 3-D volume from RGB + depth.
+    3. Convert volume → carapace length using a known correlation.
+  Why volume? Boundary pixels contribute little to volume — much more
+  robust to segmentation noise than measuring length directly.
+
+ACCURACY NUMBERS (manual vs auto on individual shrimp)
+  Mean absolute deviation:  0.55 mm
+  Mean signed deviation:    ~0 mm   (essentially unbiased)
+  Std dev of per-shrimp error: 0.72 mm
+  Most errors within ±2.5 mm or ±10%.
+
+THE BIG METHODOLOGICAL POINT — "use-case-driven evaluation"
+  Don't judge a measurement system by per-individual error alone.
+  Re-run the actual downstream analyses with both datasets and check
+  if the SCIENTIFIC CONCLUSIONS change. They demonstrate that for all
+  three use cases (stock assessment, gear selectivity, compliance) the
+  conclusions are the same — so the automated method is "good enough"
+  even though individual measurements have small errors.
+
+TAKE-AWAYS FOR MY PROJECT
+  1. Real-world motivation for the seminar's topic — perfect framing.
+  2. MAE alone is not the whole story. In my discussion I should reflect
+     on whether residual error would change downstream conclusions, not
+     just report numbers.
+  3. RGB-D / depth and proxy quantities (volume, area) are interesting
+     forward-looking ideas if anyone asks "what else could you try?"
+
+
+================================================================================
+PART E — HOW THE TWO PAPERS RELATE TO MY TASK
+================================================================================
+
+AutoFish     →  the playing field. Dataset, baseline, evaluation protocol.
+Herrmann     →  the real-world frame. Why this matters; how to evaluate
+                "accurate enough."
+
+My project sits at the intersection: train and evaluate on AutoFish, but
+think about the results with Herrmann's seriousness.
+
+
+================================================================================
+PART F — WHAT I'VE DONE IN WEEKS 1–2 (what I'll tell the professor)
+================================================================================
+
+  [x] Read the task description carefully and decoded the three sub-questions.
+  [x] Read AutoFish in depth — dataset structure, baseline architecture,
+      reported numbers, evaluation protocol.
+  [x] Read Herrmann et al. — got the real-world motivation and the
+      use-case-driven evaluation lesson.
+  [x] Understood the role of Vision Foundation Models and the candidates
+      (DINOv2, SAM, CLIP, etc.).
+  [x] Sketched a plan and code structure for the data pipeline.
+  [x] Identified the critical pitfalls (especially: group-level split).
+
+
+================================================================================
+PART G — PROPOSED DIRECTION (sketch, NOT a commitment)
+================================================================================
+
+The plan needs the professor's input before being locked in.
+
+WEEKS 3–4
+  - Download AutoFish from HuggingFace.
+  - Implement deterministic group-level split: 16 train / 4 val / 5 test.
+  - Generate per-fish crops on disk (bbox from mask, +10% pad, 224×224).
+  - Train first MobileNetV2 baseline reproduction.
+  - Verify MAE within ~0.2 cm of the published 0.62 / 1.38 numbers.
+
+WEEKS 5–6
+  - Plug in DINOv2 ViT-B/14 as encoder (subject to supervisor input).
+  - Two variants:
+      V-Frozen: encoder frozen, only MLP head trained.
+      V-FT:     encoder fine-tuned at small LR (1e-5).
+  - Run the data-efficiency sweep:
+      Training fractions: 100% / 50% / 25% / 10% / 5%
+      3 seeds at each fraction
+      4 models compared (B-Scratch, B-Baseline, V-Frozen, V-FT)
+  - Failure analysis: error by species, by length, by occlusion.
+
+WEEKS 7+
+  - Optional: second-dataset transfer (if North Sea data arrives).
+  - Optional: compare a second VFM (SAM 2 image encoder).
+
+NOT YET COMMITTED TO
+  - Which VFM exactly
+  - Augmentation policy
+  - Exact split ratios
+  - Reduced-data fractions
+  - Whether to fine-tune the encoder or keep it frozen
+  All of these are decisions to make WITH the supervisor.
+
+
+================================================================================
+PART H — METRICS TO REPORT
+================================================================================
+
+  MAE    primary, matches the paper; in cm; lower is better.
+  RMSE   penalizes large errors more than MAE.
+  MAPE   percent error; useful because 1 cm matters more on a 10 cm
+         whiting than on a 50 cm cod.
+  Bias   mean signed error; tells me if model systematically over- or
+         under-predicts.
+  R²     fraction of length variance the model explains.
+
+Report all five, split between no-occlusion and with-occlusion regimes.
+
+
+================================================================================
+PART I — QUESTIONS TO ASK THE PROFESSOR
+================================================================================
+
+  1. Encoder choice — DINOv2 default OK, or do you prefer SAM 2 / something else?
+  2. Reduced-data scale — fractions (50/25/10/5%) OK, or specific counts?
+  3. Use ground-truth masks for evaluation? (Paper does; I'll default to same.)
+  4. North Sea dataset — timeline? Plan around it or treat as stretch?
+  5. Compute resources — group GPU, or my own machine?
+  6. Tooling preferences — PyTorch + timm + W&B (my default)?
+  7. Meeting cadence — every two weeks?
+  8. Report format / length expectations?
+  9. Are there students who worked on related projects whose notes I could see?
+
+
+================================================================================
+PART J — POTENTIAL DIFFICULT QUESTIONS + MY ANSWERS
+================================================================================
+
+Q: Why DINOv2 and not SAM or CLIP?
+A: DINOv2 transfers well to fine-grained / dense tasks without fine-tuning,
+   which matches the "limited labels" question. SAM is also reasonable —
+   I'd compare to it if time allows. CLIP is more semantic, less geometric,
+   so a worse first choice for measurement.
+
+Q: How do you know your baseline reproduction is faithful?
+A: Same architecture, same loss family (L1/Smooth-L1), same metric (MAE),
+   same two evaluation regimes (no-occlusion / occluded). I report my
+   number next to the paper's 0.62 / 1.38. Within ~0.2 cm = credible.
+
+Q: What if DINOv2 doesn't beat MobileNetV2 at full data?
+A: Valid scientific outcome — I'd report it honestly. The interesting
+   experiment is the small-data regime. Even ties at 100% but wins at 10%
+   is the result the task is asking about.
+
+Q: Why crops, not whole images?
+A: Whole-image regression conflates "which fish?" with "how long?".
+   Cropping isolates the regression problem; matches the paper.
+
+Q: Why not also replace segmentation with a VFM?
+A: Task asks to swap the encoder of the length-estimation baseline.
+   Segmentation is a separate problem; conflating both muddies the
+   comparison. I use GT masks at evaluation, like the paper.
+
+Q: Is 1,500 images enough?
+A: It's tight — that's exactly why this is an interesting problem and why
+   VFMs may help. The data-efficiency experiment makes this an explicit
+   variable rather than a hidden confounder.
+
+Q: Are the labels precise enough?
+A: Lengths rounded to 5 mm → MAE floor of ~0.25 cm. Won't chase below that.
+
+
+================================================================================
+PART K — RISKS AND MITIGATIONS
+================================================================================
+
+Risk                                  Mitigation
+----------------------------------    ---------------------------------------
+Can't reproduce baseline MAE          Try a few LR/aug combos; document gap
+                                      honestly and proceed
+DINOv2 doesn't help                   Still a valid result; try SAM 2 too
+High variance across splits           Average over 3 group-level splits
+Compute budget too small              Drop 3-seeds for the full sweep,
+                                      keep 3 seeds only for headline rows
+North Sea data arrives late           Zero-shot test + tiny fine-tune only
+Labels noisy (5 mm rounding)          Floor MAE expectation at ~0.25 cm
+
+
+================================================================================
+PART L — DELIVERABLES BUILT SO FAR (in the outputs folder)
+================================================================================
+
+  00_understanding_the_task.md
+      Plain-language walkthrough of everything in this project. Read first
+      if I forget the basics.
+
+  first_meeting_briefing.md
+      The script for meeting 1. What to say, in what order, what to ask.
+
+  research_plan.md
+      Deeper technical plan for later meetings. Has full experiment
+      design, model variants, training recipe, timeline, risks.
+
+  first_meeting.pptx
+      The slide deck for meeting 1. 16 slides, dark "Ocean Gradient"
+      palette, sandwich structure (dark intro/outro, light content).
+      Slides:
+        1  Title
+        2  Agenda
+        3  The problem in plain language
+        4  The research question, decoded
+        5  Paper 1 cover (AutoFish)
+        6  AutoFish dataset facts
+        7  The group-level split (the critical point)
+        8  AutoFish baseline — model to reproduce + headline numbers
+        9  Paper 2 cover (Herrmann)
+        10 Herrmann method and accuracy numbers
+        11 The use-case-driven evaluation idea
+        12 How the two papers fit my task
+        13 Vision Foundation Models — what they are
+        14 Where I am, where I'm going (timeline)
+        15 Questions for the professor
+        16 Thank you / summary
+
+  code/
+      Starter code skeleton (not yet run, needs supervisor input first):
+        prepare_autofish.py  — download, split, generate crops
+        models.py            — the four model variants
+        train.py             — training loop with --train_frac sweep
+        run_experiments.sh   — drives the full sweep
+        aggregate_results.py — collects metrics + headline plot
+        README.md            — how to run everything
+        requirements.txt     — Python deps
+
+
+================================================================================
+PART M — WHAT TO DO BEFORE THE MEETING
+================================================================================
+
+  [ ] Re-read 00_understanding_the_task.md (the layman explainer)
+  [ ] Re-read first_meeting_briefing.md (the meeting script)
+  [ ] Skim the PowerPoint, walk through each slide aloud once
+  [ ] Practice saying the three sub-questions in your own words
+  [ ] Practice explaining why group-level split matters in 30 seconds
+  [ ] Memorize the two headline numbers: 0.62 cm and 1.38 cm
+  [ ] Write the questions for the professor on paper to bring along
+  [ ] Decide which 4–6 questions to actually ask (not all of them)
+
+
+================================================================================
+PART N — TONE FOR THE MEETING
+================================================================================
+
+  - Don't oversell. The honest answer for two weeks is "I read carefully,
+    I understand, I have a sketch — please give me input before I commit."
+  - When you don't know something, say so. "I don't know yet, I'll think
+    about it before next time." Write it down visibly.
+  - Don't apologize excessively if challenged. One acknowledgment, move on.
+  - Bring written questions on paper. It signals preparation.
+  - Let the professor steer; don't monologue. Plan ~20–30 minutes.
+  - Close by committing to a small, concrete, verifiable chunk of work
+    for the next 1–2 weeks.
+
+
+================================================================================
+PART O — KEY URLS / REFERENCES
+================================================================================
+
+  AutoFish dataset:
+    https://huggingface.co/datasets/vapaau/autofish
+  AutoFish paper (arXiv):
+    https://arxiv.org/abs/2501.03767
+  AutoFish project page:
+    https://vap.aau.dk/autofish/
+  Herrmann et al. (2024):
+    DOI: 10.1016/j.rsma.2024.103852
+  Herrmann summary (open access):
+    https://www.globalseafood.org/advocate/can-automatic-measuring-replace-humans-when-evaluating-a-shrimp-fishery/
+  DINOv2:
+    torch.hub.load('facebookresearch/dinov2', 'dinov2_vitb14')
+  Supervisor:
+    bohan.zhuang@uni-rostock.de
+
+
+================================================================================
+END OF NOTES
+================================================================================

@@ -1,0 +1,6 @@
+{
+  "reason": "Dropped singleton/low-count fish_id duplicates that cross train/val/test splits.",
+  "annotation_ids": [
+    3759
+  ]
+}

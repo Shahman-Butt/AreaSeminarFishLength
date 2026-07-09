@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AutoFish A3 Poster — Fish Length Estimation with Vision Foundation Models</title>
+<style>
+  /* ====== A3 print setup ====== */
+  @page { size: A3 portrait; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #e8e8e6; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #0b0b0b; }
+
+  .poster {
+    width: 297mm;
+    height: 420mm;
+    margin: 0 auto;
+    background: #fcfcfb;
+    padding: 9mm 11mm 8mm 11mm;
+    display: flex;
+    flex-direction: column;
+    gap: 4.5mm;
+  }
+  @media print {
+    html, body { background: #fcfcfb; }
+    .poster { margin: 0; }
+  }
+
+  /* ====== tokens ====== */
+  :root {
+    --ink:        #0b0b0b;
+    --ink-2:      #52514e;
+    --muted:      #898781;
+    --grid:       #e1e0d9;
+    --axisline:   #c3c2b7;
+    --card:       #f5f4f1;
+    --accent:     #2a78d6;   /* supervised ImageNet encoders */
+    --clip:       #1baf7a;   /* CLIP */
+    --dino:       #4a3aa7;   /* DINOv2 */
+    --accent-deep:#184f95;
+  }
+
+  /* ====== header ====== */
+  header { border-bottom: 0.8mm solid var(--accent); padding-bottom: 3.5mm; }
+  header h1 { font-size: 25pt; line-height: 1.15; letter-spacing: -0.01em; }
+  header h1 .q { color: var(--accent-deep); }
+  header .authors { margin-top: 2mm; font-size: 11pt; color: var(--ink); }
+  header .affil   { margin-top: 0.8mm; font-size: 9.5pt; color: var(--ink-2); }
+
+  /* ====== generic blocks ====== */
+  .row { display: flex; gap: 4.5mm; }
+  .block {
+    background: var(--card);
+    border-radius: 2.5mm;
+    padding: 4mm 4.5mm;
+    flex: 1;
+  }
+  .block h2 {
+    font-size: 12.5pt;
+    color: var(--accent-deep);
+    margin-bottom: 2mm;
+    letter-spacing: 0.01em;
+  }
+  .block p, .block li { font-size: 9.7pt; line-height: 1.38; color: var(--ink); }
+  .block ul { list-style: none; }
+  .block li { margin-bottom: 1.4mm; padding-left: 3.6mm; position: relative; }
+  .block li::before { content: "▸"; position: absolute; left: 0; color: var(--accent); font-size: 8.5pt; top: 0.2mm; }
+  .block .small { font-size: 8.6pt; color: var(--ink-2); }
+  strong { font-weight: 650; }
+
+  .question-box {
+    margin-top: 2mm;
+    background: #fcfcfb;
+    border-left: 1.2mm solid var(--accent);
+    border-radius: 1.5mm;
+    padding: 2.2mm 3mm;
+    font-size: 10pt;
+    line-height: 1.35;
+  }
+
+  /* pipeline strip */
+  .pipe { display: flex; align-items: stretch; gap: 1.6mm; margin: 2mm 0 2.2mm 0; }
+  .pipe .step {
+    flex: 1; background: #fcfcfb; border: 0.35mm solid var(--grid);
+    border-radius: 1.5mm; padding: 1.6mm 1.2mm; text-align: center;
+    font-size: 8.2pt; line-height: 1.25; color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pipe .arrow { align-self: center; color: var(--muted); font-size: 10pt; }
+
+  /* ====== main results area ====== */
+  .main { display: flex; gap: 4.5mm; flex: 1; min-height: 0; }
+  .figure {
+    flex: 1.55;
+    background: var(--card);
+    border-radius: 2.5mm;
+    padding: 4mm 4.5mm;
+    display: flex; flex-direction: column;
+    border: 0.5mm solid var(--accent);
+  }
+  .figure h2 { font-size: 13.5pt; color: var(--ink); margin-bottom: 1mm; }
+  .figure .sub { font-size: 9.5pt; color: var(--ink-2); margin-bottom: 2.5mm; }
+  .figure svg { width: 100%; height: auto; flex: 1; }
+  .figure .takeaway {
+    margin-top: 2.5mm; background: #fcfcfb; border-radius: 1.5mm;
+    padding: 2.2mm 3mm; font-size: 10pt; line-height: 1.35;
+    border-left: 1.2mm solid var(--accent);
+  }
+  .figure .caption { margin-top: 1.6mm; font-size: 8.2pt; color: var(--ink-2); line-height: 1.3; }
+
+  .side { flex: 1; display: flex; flex-direction: column; gap: 4.5mm; }
+
+  /* reproduction stat tiles */
+  .tiles { display: flex; gap: 3mm; margin-top: 2mm; }
+  .tile {
+    flex: 1; background: #fcfcfb; border-radius: 1.8mm; padding: 2.4mm 3mm;
+    border: 0.35mm solid var(--grid);
+  }
+  .tile .label { font-size: 8.2pt; color: var(--ink-2); }
+  .tile .value { font-size: 19pt; font-weight: 650; margin-top: 0.6mm; }
+  .tile .unit  { font-size: 9.5pt; font-weight: 400; color: var(--ink-2); }
+
+  .takehome {
+    background: var(--accent-deep);
+    color: #ffffff;
+    border-radius: 2.5mm;
+    padding: 4mm 4.5mm;
+  }
+  .takehome h2 { font-size: 12.5pt; margin-bottom: 1.6mm; color: #ffffff; }
+  .takehome p { font-size: 10.5pt; line-height: 1.4; }
+
+  /* ====== footer ====== */
+  footer {
+    border-top: 0.35mm solid var(--grid);
+    padding-top: 2mm;
+    display: flex; gap: 6mm;
+    font-size: 7.6pt; color: var(--ink-2); line-height: 1.35;
+  }
+  footer div { flex: 1; }
+  footer strong { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <!-- ================= HEADER ================= -->
+  <header>
+    <h1>Fish Length Estimation with Vision Foundation Models:<br>
+      <span class="q">Can They Beat the AutoFish CNN Baseline?</span></h1>
+    <div class="authors">Shahman Butt</div>
+    <div class="affil">Area Seminar — Deep Learning for Maritime Vision Applications, Visual and Analytic Computing in Ocean Technologies (VACOT), University of Rostock &nbsp;·&nbsp; Supervisor: Stefan Oehmcke</div>
+  </header>
+
+  <!-- ================= ROW 1: MOTIVATION / DATA / METHOD ================= -->
+  <div class="row">
+
+    <div class="block">
+      <h2>Motivation &amp; Question</h2>
+      <ul>
+        <li>Fish length is a key measurement for fisheries science and catch monitoring — manual measuring is slow and invasive.</li>
+        <li>The AutoFish benchmark (Bengtson et al., WACVW 2025) provides images, annotations, and a CNN length-regression baseline.</li>
+        <li>Vision foundation models promise strong general features — but do they help <strong>precise metric regression</strong>?</li>
+      </ul>
+      <div class="question-box">
+        <strong>Question:</strong> Do foundation-model encoders (DINOv2, CLIP) or newer supervised encoders (ConvNeXt) improve fish length estimation over the reproduced AutoFish MobileNetV2 baseline — under identical data, splits, and metrics?
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Data &amp; Setup</h2>
+      <ul>
+        <li><strong>AutoFish dataset:</strong> 1,500 top-view images, 454 unique fish, 18,157 fish annotations, organized in 25 fish groups.</li>
+        <li><strong>Official group-level split:</strong> 15 train / 5 validation / 5 test groups — no fish appears in two splits (one duplicate fish identity found and removed).</li>
+        <li><strong>Two test regimes:</strong> non-occluded (Set1+Set2, fish laid separately) vs. occluded (“All”, fish overlapping).</li>
+        <li><strong>Metric:</strong> mean absolute error (MAE) of predicted length in cm — lower is better. RMSE, MAPE, and R² tracked as secondary metrics.</li>
+      </ul>
+    </div>
+
+    <div class="block">
+      <h2>Method / Workflow</h2>
+      <div class="pipe">
+        <div class="step">Fish crop<br>(bounding box)</div>
+        <div class="arrow">→</div>
+        <div class="step">Resize<br>224 × 224</div>
+        <div class="arrow">→</div>
+        <div class="step">Image<br>encoder</div>
+        <div class="arrow">→</div>
+        <div class="step">+ box size<br>(4 values)</div>
+        <div class="arrow">→</div>
+        <div class="step">Regression head<br>[512, 128, 1]</div>
+        <div class="arrow">→</div>
+        <div class="step"><strong>Length<br>(cm)</strong></div>
+      </div>
+      <ul>
+        <li><strong>Only the encoder is swapped;</strong> everything else — split, input, head, L1 loss, Adam optimizer, 100 epochs, metrics — is held fixed for a fair comparison.</li>
+        <li><strong>Encoders:</strong> MobileNetV2 (paper baseline), ConvNeXt-Tiny, CLIP ViT-B/32 (frozen &amp; last-block fine-tuned), DINOv2 ViT-S/14 (frozen, last-block, full fine-tune).</li>
+        <li>Step 1: reproduce the paper baseline. Step 2: run all encoder swaps against it.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ================= ROW 2: MAIN FIGURE + FINDINGS ================= -->
+  <div class="main">
+
+    <!-- ---- main result figure ---- -->
+    <div class="figure">
+      <h2>Main result — the lightweight CNN baseline still wins</h2>
+      <div class="sub">Mean absolute error (cm) on the full test set (3,759 fish, occluded + non-occluded) · lower is better</div>
+
+      <svg viewBox="0 0 760 412" role="img" aria-label="Horizontal bar chart of full-test mean absolute error in centimeters for eight models. MobileNetV2 baseline is best at 0.771 cm; DINOv2 full fine-tune is worst at 2.132 cm.">
+        <!-- legend -->
+        <g font-family="system-ui, Segoe UI, sans-serif" font-size="12.5">
+          <rect x="0"   y="2" width="11" height="11" rx="2" fill="#2a78d6"/>
+          <text x="16"  y="12" fill="#0b0b0b">Supervised ImageNet encoder</text>
+          <rect x="230" y="2" width="11" height="11" rx="2" fill="#1baf7a"/>
+          <text x="246" y="12" fill="#0b0b0b">CLIP ViT-B/32 (vision–language)</text>
+          <rect x="480" y="2" width="11" height="11" rx="2" fill="#4a3aa7"/>
+          <text x="496" y="12" fill="#0b0b0b">DINOv2 ViT-S/14 (self-supervised)</text>
+        </g>
+
+        <!-- gridlines: 0.5 / 1.0 / 1.5 / 2.0 cm (300 px per cm) -->
+        <g stroke="#e1e0d9" stroke-width="1">
+          <line x1="150" y1="34" x2="150" y2="378"/>
+          <line x1="300" y1="34" x2="300" y2="378"/>
+          <line x1="450" y1="34" x2="450" y2="378"/>
+          <line x1="600" y1="34" x2="600" y2="378"/>
+        </g>
+
+        <g font-family="system-ui, Segoe UI, sans-serif">
+          <!-- ============ bars: rows at 44px pitch, bar h=18 ============ -->
+
+          <!-- 1. MobileNetV2 baseline 0.771 -->
+          <text x="0" y="42" font-size="12.5" font-weight="650" fill="#0b0b0b">MobileNetV2
+            <tspan font-weight="400" fill="#52514e">&nbsp;— reproduced paper baseline</tspan></text>
+          <rect x="0" y="47" width="231" height="18" rx="4" fill="#2a78d6"/>
+          <rect x="0" y="47" width="6"   height="18" fill="#2a78d6"/>
+          <text x="239" y="61" font-size="13" font-weight="650" fill="#0b0b0b">0.771</text>
+
+          <!-- 2. ConvNeXt-Tiny 0.914 -->
+          <text x="0" y="86" font-size="12.5" fill="#0b0b0b">ConvNeXt-Tiny <tspan fill="#52514e">— fine-tuned</tspan></text>
+          <rect x="0" y="91" width="274" height="18" rx="4" fill="#2a78d6"/>
+          <rect x="0" y="91" width="6"   height="18" fill="#2a78d6"/>
+          <text x="282" y="105" font-size="13" fill="#0b0b0b">0.914</text>
+
+          <!-- 3. CLIP last-block 0.958 -->
+          <text x="0" y="130" font-size="12.5" fill="#0b0b0b">CLIP <tspan fill="#52514e">— last visual block fine-tuned</tspan></text>
+          <rect x="0" y="135" width="287" height="18" rx="4" fill="#1baf7a"/>
+          <rect x="0" y="135" width="6"   height="18" fill="#1baf7a"/>
+          <text x="295" y="149" font-size="13" fill="#0b0b0b">0.958</text>
+
+          <!-- 4. CLIP frozen 1.002 -->
+          <text x="0" y="174" font-size="12.5" fill="#0b0b0b">CLIP <tspan fill="#52514e">— frozen encoder</tspan></text>
+          <rect x="0" y="179" width="301" height="18" rx="4" fill="#1baf7a"/>
+          <rect x="0" y="179" width="6"   height="18" fill="#1baf7a"/>
+          <text x="309" y="193" font-size="13" fill="#0b0b0b">1.002</text>
+
+          <!-- 5. DINOv2 last-block 1.439 -->
+          <text x="0" y="218" font-size="12.5" fill="#0b0b0b">DINOv2 <tspan fill="#52514e">— last block fine-tuned</tspan></text>
+          <rect x="0" y="223" width="432" height="18" rx="4" fill="#4a3aa7"/>
+          <rect x="0" y="223" width="6"   height="18" fill="#4a3aa7"/>
+          <text x="440" y="237" font-size="13" fill="#0b0b0b">1.439</text>
+
+          <!-- 6. DINOv2 frozen 1.738 -->
+          <text x="0" y="262" font-size="12.5" fill="#0b0b0b">DINOv2 <tspan fill="#52514e">— frozen encoder</tspan></text>
+          <rect x="0" y="267" width="521" height="18" rx="4" fill="#4a3aa7"/>
+          <rect x="0" y="267" width="6"   height="18" fill="#4a3aa7"/>
+          <text x="529" y="281" font-size="13" fill="#0b0b0b">1.738</text>
+
+          <!-- 7. DINOv2 full FT lr 1e-5 1.778 -->
+          <text x="0" y="306" font-size="12.5" fill="#0b0b0b">DINOv2 <tspan fill="#52514e">— full fine-tune, encoder LR 1e-5</tspan></text>
+          <rect x="0" y="311" width="533" height="18" rx="4" fill="#4a3aa7"/>
+          <rect x="0" y="311" width="6"   height="18" fill="#4a3aa7"/>
+          <text x="541" y="325" font-size="13" fill="#0b0b0b">1.778</text>
+
+          <!-- 8. DINOv2 full FT lr 1e-6 2.132 -->
+          <text x="0" y="350" font-size="12.5" fill="#0b0b0b">DINOv2 <tspan fill="#52514e">— full fine-tune, encoder LR 1e-6</tspan></text>
+          <rect x="0" y="355" width="640" height="18" rx="4" fill="#4a3aa7"/>
+          <rect x="0" y="355" width="6"   height="18" fill="#4a3aa7"/>
+          <text x="648" y="369" font-size="13" fill="#0b0b0b">2.132</text>
+        </g>
+
+        <!-- axis -->
+        <line x1="0" y1="378" x2="660" y2="378" stroke="#c3c2b7" stroke-width="1"/>
+        <g font-family="system-ui, Segoe UI, sans-serif" font-size="11.5" fill="#898781">
+          <text x="0"   y="394">0</text>
+          <text x="150" y="394" text-anchor="middle">0.5</text>
+          <text x="300" y="394" text-anchor="middle">1.0</text>
+          <text x="450" y="394" text-anchor="middle">1.5</text>
+          <text x="600" y="394" text-anchor="middle">2.0</text>
+          <text x="660" y="394" text-anchor="end" font-style="italic">MAE (cm)</text>
+        </g>
+      </svg>
+
+      <div class="takeaway">
+        <strong>Takeaway:</strong> every foundation-model variant trails the fine-tuned MobileNetV2 baseline. Task-adapted supervised encoders (blue) fill the top of the ranking; general-purpose features transfer only partially (CLIP) or poorly (DINOv2).
+      </div>
+      <div class="caption">
+        Figure: full-test MAE per model, identical split / input / head / training budget for all encoders. Single training run per model (seed 42); multi-seed validation is ongoing work.
+      </div>
+    </div>
+
+    <!-- ---- side column ---- -->
+    <div class="side">
+
+      <div class="block" style="flex:0 0 auto;">
+        <h2>Baseline reproduction</h2>
+        <p class="small">Non-occluded test MAE (Set1+Set2), our run vs. the AutoFish paper:</p>
+        <div class="tiles">
+          <div class="tile">
+            <div class="label">Paper (Bengtson et al.)</div>
+            <div class="value">0.62 <span class="unit">cm</span></div>
+          </div>
+          <div class="tile" style="border-color:#2a78d6;">
+            <div class="label">Our reproduction</div>
+            <div class="value">0.633 <span class="unit">cm</span></div>
+          </div>
+        </div>
+        <p class="small" style="margin-top:2mm;">Difference of 0.013 cm → the baseline — and our whole comparison pipeline — is trustworthy.</p>
+      </div>
+
+      <div class="block" style="flex:1;">
+        <h2>Key findings</h2>
+        <ul>
+          <li><strong>Baseline reproduced</strong> within 0.013 cm of the paper on non-occluded fish.</li>
+          <li><strong>MobileNetV2 remains best overall:</strong> 0.771 cm full-test MAE.</li>
+          <li><strong>Foundation features are not automatically better.</strong> Frozen DINOv2 reaches only 1.738 cm; even its best variant (last-block fine-tuned) stays at 1.439 cm.</li>
+          <li><strong>CLIP transfers far better than DINOv2</strong> (0.958 cm with light fine-tuning) but still does not beat the CNN.</li>
+          <li><strong>Supervised ImageNet encoders are the closest challengers:</strong> ConvNeXt-Tiny reaches 0.914 cm.</li>
+          <li><strong>Occlusion hurts every model:</strong> e.g. the baseline degrades from 0.633 cm (separate fish) to 0.909 cm (overlapping fish).</li>
+        </ul>
+      </div>
+
+      <div class="takehome" style="flex:0 0 auto;">
+        <h2>Take-home message</h2>
+        <p>For precise fish length regression, a small task-adapted CNN still beats vision foundation models. Strong general features are no substitute for end-to-end task adaptation when millimetres matter.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ROW 3: LIMITATIONS / NEXT ================= -->
+  <div class="row" style="flex: 0 0 auto;">
+    <div class="block">
+      <h2>Limitations</h2>
+      <ul>
+        <li>One training run per model (fixed seed) — differences of a few hundredths of a cm are not yet statistically validated.</li>
+        <li>Foundation models tested at small scale (ViT-S/14, ViT-B/32) with limited fine-tuning budgets — larger variants might behave differently.</li>
+        <li>No per-species or per-length-range error analysis yet.</li>
+      </ul>
+    </div>
+    <div class="block">
+      <h2>Next steps</h2>
+      <ul>
+        <li>EfficientNet-B0 as the next supervised-encoder candidate.</li>
+        <li>Repeat the top models with 3 seeds to quantify run-to-run variance.</li>
+        <li>Error analysis by species, fish size, and occlusion difficulty.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ================= FOOTER ================= -->
+  <footer>
+    <div>
+      <strong>Reference:</strong> S. H. Bengtson et al., “AutoFish: Dataset and Benchmark for Fine-grained Analysis of Fish,” WACV Workshops 2025 (arXiv:2501.03767). Dataset: Hugging Face <em>vapaau/autofish</em>.
+    </div>
+    <div>
+      <strong>Reproducibility:</strong> fixed seed (42), official group split, versioned configs per experiment, requirements.txt, saved checkpoints &amp; per-fish prediction files. Trained on one NVIDIA RTX 5000 Ada (32 GB).
+    </div>
+    <div>
+      <strong>AI statement:</strong> generative AI tools were used to assist with code scaffolding and text drafting; all experiments, results, and conclusions are the author's own work and were verified by the author.
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>
