@@ -191,9 +191,9 @@
         <div class="step"><strong>Length<br>(cm)</strong></div>
       </div>
       <ul>
-        <li><strong>Only the encoder is swapped.</strong> Everything else (split, input, head, L1 loss, Adam optimizer, epochs, metrics) is held fixed for a fair comparison.</li>
+        <li><strong>Only the encoder is swapped.</strong> Split, input, head, L1 loss, and metrics are identical across models for a fair comparison.</li>
+        <li><strong>Learning rate follows each encoder type:</strong> the MobileNetV2 baseline reproduces the paper setup (Adam, 1e-3); foundation models are fine-tuned at lower rates (1e-4, and 1e-5/1e-6 for DINOv2 full fine-tune), as pretrained encoders require.</li>
         <li><strong>Encoders:</strong> MobileNetV2 (paper baseline), ConvNeXt-Tiny, CLIP ViT-B/32 (frozen &amp; last-block fine-tuned), DINOv2 ViT-S/14 (frozen, last-block, full fine-tune).</li>
-        <li>Step 1: reproduce the paper baseline. Step 2: run all encoder swaps against it.</li>
       </ul>
     </div>
   </div>
@@ -294,7 +294,7 @@
         <strong>Takeaway:</strong> every foundation-model variant trails the fine-tuned MobileNetV2 baseline. Task-adapted supervised encoders (blue) fill the top of the ranking; general-purpose features transfer only partially (CLIP) or poorly (DINOv2).
       </div>
       <div class="caption">
-        Figure: full-test MAE per model, identical split / input / head / training budget for all encoders. Single training run per model (seed 42); multi-seed validation is ongoing work.
+        Figure: full-test MAE per model, identical split / input / head / metrics; learning rate set per encoder type (see Method). Single training run per model (seed 42); multi-seed validation is ongoing work.
       </div>
     </div>
 

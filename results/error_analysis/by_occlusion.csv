@@ -1,0 +1,9 @@
+model,MAE_full,MAE_non_occluded,MAE_occluded,occlusion_penalty
+MobileNetV2,0.771,0.633,0.909,0.277
+ConvNeXt-Tiny,0.914,0.814,1.014,0.2
+CLIP-lastblock,0.958,0.842,1.074,0.232
+CLIP-frozen,1.002,0.898,1.106,0.208
+DINOv2-lastblock,1.439,1.34,1.537,0.196
+DINOv2-frozen,1.738,1.69,1.786,0.096
+DINOv2-full-1e5,1.778,1.636,1.919,0.282
+DINOv2-full-1e6,2.132,2.075,2.189,0.114
