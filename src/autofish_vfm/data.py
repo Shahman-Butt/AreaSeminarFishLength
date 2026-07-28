@@ -18,7 +18,11 @@ class CropDataset(Dataset):
         image_size=None,
         normalize_mean=None,
         normalize_std=None,
+        label_map=None,
     ):
+        # label_map: optional {species_name: class_index}. When given, the target
+        # becomes the species class index (classification) instead of length (regression).
+        self.label_map = label_map
         self.df = pd.read_csv(index_csv)
         if split != "all":
             self.df = self.df[self.df["split"] == split]
@@ -59,7 +63,10 @@ class CropDataset(Dataset):
             ],
             dtype=torch.float32,
         )
-        target = torch.tensor([row.length_cm], dtype=torch.float32)
+        if self.label_map is not None:
+            target = torch.tensor(self.label_map[row.species], dtype=torch.long)
+        else:
+            target = torch.tensor([row.length_cm], dtype=torch.float32)
         meta = {
             "annotation_id": int(row.annotation_id),
             "fish_id": int(row.fish_id),

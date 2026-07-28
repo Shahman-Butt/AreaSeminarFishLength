@@ -1,0 +1,17 @@
+{
+  "test_all": {
+    "accuracy": 0.9957435488161746,
+    "macro_f1": 0.9920920885139844,
+    "n": 3759
+  },
+  "non_occluded_set1_set2": {
+    "accuracy": 1.0,
+    "macro_f1": 1.0,
+    "n": 1879
+  },
+  "occluded_all": {
+    "accuracy": 0.9914893617021276,
+    "macro_f1": 0.9841847826547792,
+    "n": 1880
+  }
+}

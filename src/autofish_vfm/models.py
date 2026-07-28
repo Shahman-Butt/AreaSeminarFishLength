@@ -78,11 +78,13 @@ class DINOv2Regressor(nn.Module):
         freeze_encoder=True,
         trainable_blocks=0,
         head=None,
+        use_patch_tokens=False,
     ):
         super().__init__()
         self.encoder = torch.hub.load("facebookresearch/dinov2", dinov2_model)
         self.freeze_encoder = freeze_encoder
         self.trainable_blocks = trainable_blocks
+        self.use_patch_tokens = use_patch_tokens
         if freeze_encoder:
             self.encoder.eval()
             for param in self.encoder.parameters():
@@ -107,6 +109,10 @@ class DINOv2Regressor(nn.Module):
         if hasattr(self.encoder, "forward_features"):
             features = self.encoder.forward_features(image)
             if isinstance(features, dict):
+                # use_patch_tokens: mean-pool the spatial patch tokens (keeps local
+                # geometry, better suited to size/length than the global CLS token).
+                if self.use_patch_tokens and "x_norm_patchtokens" in features:
+                    return features["x_norm_patchtokens"].mean(dim=1)
                 if "x_norm_clstoken" in features:
                     return features["x_norm_clstoken"]
                 if "x_norm_patchtokens" in features:
@@ -215,6 +221,7 @@ def build_model(config):
             freeze_encoder=config.get("freeze_encoder", True),
             trainable_blocks=config.get("trainable_blocks", 0),
             head=config.get("head"),
+            use_patch_tokens=config.get("use_patch_tokens", False),
         )
     if model_name == "convnext":
         return ConvNeXtRegressor(

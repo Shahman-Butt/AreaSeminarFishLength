@@ -3,6 +3,31 @@ import math
 import numpy as np
 
 
+def classification_metrics(y_true, y_pred, num_classes=None):
+    """Accuracy and macro-F1 for species classification.
+
+    y_true, y_pred are integer class indices.
+    """
+    y_true = np.asarray(y_true, dtype=int)
+    y_pred = np.asarray(y_pred, dtype=int)
+    acc = float(np.mean(y_true == y_pred))
+    classes = range(num_classes) if num_classes else sorted(set(y_true.tolist()) | set(y_pred.tolist()))
+    f1s = []
+    for c in classes:
+        tp = int(np.sum((y_pred == c) & (y_true == c)))
+        fp = int(np.sum((y_pred == c) & (y_true != c)))
+        fn = int(np.sum((y_pred != c) & (y_true == c)))
+        prec = tp / (tp + fp) if (tp + fp) else 0.0
+        rec = tp / (tp + fn) if (tp + fn) else 0.0
+        f1 = 2 * prec * rec / (prec + rec) if (prec + rec) else 0.0
+        f1s.append(f1)
+    return {
+        "accuracy": acc,
+        "macro_f1": float(np.mean(f1s)),
+        "n": int(len(y_true)),
+    }
+
+
 def regression_metrics(y_true, y_pred):
     y_true = np.asarray(y_true, dtype=float)
     y_pred = np.asarray(y_pred, dtype=float)
