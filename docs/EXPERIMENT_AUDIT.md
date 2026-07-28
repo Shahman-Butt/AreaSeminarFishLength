@@ -74,9 +74,15 @@ Launched (persistent tmux `newexp`), identical HPs (LR 1e-4, batch 16, 100 ep), 
 `dinov2_vits14_patchtokens_lastblock` — warm-started from the existing patch-token frozen
 checkpoint; tests whether partial fine-tuning pushes patch-token DINOv2 further. (NEW.)
 
-### 3c. Not yet done / attempt pending
-- **DINOv3 backbone** — hub repo present on server but import needs `torchmetrics`; weights may be
-  license-gated. Priority: medium; attempt then document outcome honestly.
+### 3c. DINOv3 — ATTEMPTED, BLOCKED (documented failure)
+- Installed missing deps (`torchmetrics`, `termcolor`, `omegaconf`); the **architecture loads**
+  (`dinov3_vits16`, 21.6M params, `pretrained=False`).
+- **Pretrained weights are license-gated:** the official download
+  (`dl.fbaipublicfiles.com/dinov3/...`) returns **HTTP 403 Forbidden**. A meaningful DINOv3
+  experiment is therefore **not possible** without the authors obtaining access-approved weights
+  from Meta. Status: **blocked**, not a code problem.
+
+### 3d. Not done — scoped as future work
 - **Mask segmentation** — the paper's third task uses Mask2Former (heavy detection/segmentation
   stack). Priority: GPU-intensive, multi-day; scoped as future work, not an overnight run.
 
