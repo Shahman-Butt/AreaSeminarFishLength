@@ -1,4 +1,58 @@
-# Fish Length Estimation Baseline Reproduction
+# Fish Length Estimation with Vision Foundation Models
+
+This repository reproduces the AutoFish length-estimation baseline and compares
+image encoders / vision foundation models on fish length regression and species
+classification.
+
+## Final results at a glance
+
+**Length regression (full-test MAE, cm — lower is better):**
+
+| Rank | Model | Full-test MAE |
+|---:|---|---:|
+| 1 | MobileNetV2 (baseline) | **0.771** |
+| 2 | ConvNeXt-Tiny | 0.914 |
+| 3 | CLIP ViT-B/32 last-block | 0.958 |
+| 4 | CLIP ViT-B/32 frozen | 1.002 |
+| 5 | **DINOv2 patch-token frozen (NEW)** | **1.261 ± 0.054** (3 seeds) |
+| 6 | DINOv2 CLS last-block | 1.439 |
+| 7 | DINOv2 CLS frozen (matched HP) | 1.843 ± 0.023 (3 seeds) |
+
+**Headline new finding (controlled, 3 seeds, identical settings):** mean-pooling
+DINOv2 **patch tokens** beats the **CLS token** by **0.58 cm** (1.261 ± 0.054 vs
+1.843 ± 0.023), with non-overlapping seed ranges — a reliable improvement, and the
+best DINOv2 configuration. Adding last-block fine-tuning did not help (1.345 cm).
+
+**Species classification (test accuracy):** ConvNeXt 99.6% · MobileNetV2 99.1% ·
+DINOv2 frozen 98.2% · CLIP frozen 95.1%. All strong; DINOv2 rises from worst
+(length) to near-top (species) — foundation features suit semantics over precise
+geometry.
+
+**Bottom line:** MobileNetV2 still wins length overall; the reliable improvement is
+*within* DINOv2 (patch vs CLS), not over the baseline.
+
+### Key documents
+- Final Word report: `docs/AutoFish_Final_Report.docx`
+- Complete layman guide + hyperparameter tuning: `docs/PROJECT_COMPLETE_GUIDE.md`
+- Experiment audit (no-repeat inventory): `docs/EXPERIMENT_AUDIT.md`
+- Professor question/answer checklist: `docs/PROFESSOR_CHECKLIST.md`
+- Animated explainer: `docs/project_explainer.html`
+- Result charts: `results/figures/` · Error analysis: `results/error_analysis/` · Qualitative: `results/qualitative/`
+- Poster: `poster/AutoFish_A3_poster.html`
+
+### Reproducing the new experiments
+```bash
+# controlled multi-seed patch-vs-CLS + patch last-block (persistent queue)
+bash scripts/run_new_experiments.sh
+# species classification across encoders
+bash scripts/run_classification_queue.sh
+# analysis / figures from saved predictions (no GPU)
+python scripts/error_analysis.py && python scripts/make_qualitative_figures.py && python scripts/make_result_charts.py
+```
+
+---
+
+## Baseline reproduction (original Q1)
 
 This repository is set up for the first research question in the seminar:
 reproduce the AutoFish deep-learning length-estimation baseline.
@@ -95,6 +149,7 @@ Project progress table:
 | Q2 VFM | DINOv2 ViT-S/14 fine-tuned, encoder LR 1e-5 | Not reported | Not reported | 1.636 cm | 1.919 cm | 1.778 cm | Complete |
 | Q2 VFM | DINOv2 ViT-S/14 fine-tuned, encoder LR 1e-6 | Not reported | Not reported | 2.075 cm | 2.189 cm | 2.132 cm | Complete |
 | Q2 VFM | DINOv2 ViT-S/14 frozen head then last block | Not reported | Not reported | 1.340 cm | 1.537 cm | 1.439 cm | Complete |
+| Q2 VFM | DINOv2 ViT-S/14 frozen patch-token pooling | Not reported | Not reported | 1.107 cm | 1.290 cm | 1.199 cm | Complete |
 | Q2 VFM | CLIP ViT-B/32 frozen encoder + regression head | Not reported | Not reported | 0.898 cm | 1.106 cm | 1.002 cm | Complete |
 | Q2 VFM | CLIP ViT-B/32 frozen head then last visual block | Not reported | Not reported | 0.842 cm | 1.074 cm | 0.958 cm | Complete |
 | Q2 VFM | ConvNeXt-Tiny ImageNet encoder | Not reported | Not reported | 0.814 cm | 1.014 cm | 0.914 cm | Complete |
