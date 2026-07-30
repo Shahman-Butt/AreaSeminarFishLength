@@ -26,6 +26,7 @@ def acc(run):
 patch = [mae("dinov2_vits14_patchtokens_frozen"), mae("dinov2_vits14_patchtokens_frozen_s1"), mae("dinov2_vits14_patchtokens_frozen_s2")]
 rows = [
     ("MobileNetV2 (baseline)", mae("baseline_official"), BLUE),
+    ("EfficientNet-B0 (NEW)", mae("efficientnet_b0"), BLUE),
     ("ConvNeXt-Tiny", mae("convnext_tiny_official"), BLUE),
     ("CLIP last-block", mae("clip_vitb32_lastblock_from_frozen"), GREEN),
     ("CLIP frozen", mae("clip_vitb32_frozen"), GREEN),
@@ -93,6 +94,31 @@ ax.spines[["top", "right"]].set_visible(False)
 ax.tick_params(axis="x", labelsize=8.5, rotation=15)
 fig.tight_layout()
 fig.savefig(OUT / "species_accuracy.png", dpi=170, bbox_inches="tight")
+plt.close(fig)
+
+# ---------- 5. Closest single models to the baseline (the "knocking on the door" story) ----------
+top = [
+    ("MobileNetV2\n(baseline)", mae("baseline_official"), MUT),
+    ("EfficientNet-B0\n(new)", mae("efficientnet_b0"), "#eda100"),
+    ("ConvNeXt-Tiny", mae("convnext_tiny_official"), BLUE),
+]
+fig, ax = plt.subplots(figsize=(4.8, 3.7))
+names = [t[0] for t in top]; vals = [t[1] for t in top]; cols = [t[2] for t in top]
+bars = ax.bar(names, vals, color=cols, width=0.6)
+ax.axhline(mae("baseline_official"), color=MUT, ls="--", lw=1)
+for i, v in enumerate(vals):
+    ax.text(i, v + 0.008, f"{v:.3f}", ha="center", fontsize=10, color=INK,
+            fontweight="bold" if i < 2 else "normal")
+ax.annotate("only 0.010 cm\nfrom baseline!", xy=(1, vals[1]), xytext=(1.5, 0.86),
+            fontsize=9, color="#b06f00", ha="center", fontweight="bold",
+            arrowprops=dict(arrowstyle="->", color="#b06f00"))
+ax.set_ylabel("Full-test MAE (cm)", fontsize=9.5)
+ax.set_ylim(0, 0.98)
+ax.set_title("Closest single models to the baseline", fontsize=11.5, fontweight="bold", color=INK)
+ax.spines[["top", "right"]].set_visible(False)
+ax.tick_params(axis="x", labelsize=8.5)
+fig.tight_layout()
+fig.savefig(OUT / "closest_single_models.png", dpi=170, bbox_inches="tight")
 plt.close(fig)
 
 # ---------- 4. Ensemble vs baseline (grouped bars, by subset) ----------
