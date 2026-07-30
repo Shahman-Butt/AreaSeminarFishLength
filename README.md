@@ -28,8 +28,17 @@ DINOv2 frozen 98.2% · CLIP frozen 95.1%. All strong; DINOv2 rises from worst
 (length) to near-top (species) — foundation features suit semantics over precise
 geometry.
 
-**Bottom line:** MobileNetV2 still wins length overall; the reliable improvement is
-*within* DINOv2 (patch vs CLS), not over the baseline.
+**Beating the baseline (ensemble):** a 3-model ensemble **selected on validation**
+(MobileNetV2 + ConvNeXt + CLIP-frozen, unweighted mean) and reported **once on test**
+achieves **0.735 cm** full-test MAE vs the baseline's 0.771 — a **4.7% improvement**,
+driven by the hard **occluded** case (**0.835 vs 0.909 cm, −8%**). Non-occluded is
+essentially tied (0.635 vs 0.633). No test-tuning: the ensemble members were chosen
+purely on validation MAE (`scripts/ensemble_select.py`).
+
+**Bottom line:** No single foundation model beats MobileNetV2 at length. Two reliable
+improvements were achieved: (1) within DINOv2, patch tokens beat the CLS token; and
+(2) a validation-selected ensemble beats the MobileNetV2 baseline, mainly on occluded
+fish.
 
 ### Key documents
 - Final Word report: `docs/AutoFish_Final_Report.docx`

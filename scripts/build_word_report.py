@@ -176,18 +176,26 @@ bullet("Per-species / per-length error analysis is done for the length models; e
 
 # ================= 7. RECOMMENDATION =================
 h("7. Final recommendation", 1)
-para("Did we improve over the baseline? — Two honest answers.", bold=True)
-para(f"1) Overall length baseline: NO. MobileNetV2 (0.771 cm) is still the best length model; no "
-     f"foundation-model variant beat it.")
+para("Did we improve over the baseline? — Three honest answers.", bold=True)
+para(f"1) Single-model length baseline: NO single encoder beat MobileNetV2 (0.771 cm); the closest "
+     f"was ConvNeXt-Tiny (0.914 cm).")
 para(f"2) Within the DINOv2 foundation model: YES, reliably. Mean-pooled patch tokens cut DINOv2's "
      f"error from {cls_mean:.3f} to {patch_mean:.3f} cm (a {cls_mean-patch_mean:.3f} cm / "
      f"{100*(cls_mean-patch_mean)/cls_mean:.0f}% reduction), verified over 3 seeds with non-overlapping "
-     f"ranges. This also improves on the previous best DINOv2 result (1.439 cm CLS last-block).")
-para("Why it is credible: identical dataset, split, inputs, head and metrics; the only change is the "
-     "token type; three seeds with separated ranges; test set never used for tuning.")
-para("What remains uncertain: whether the small length gaps among the top models are significant "
-     "(needs multi-seed baselines); whether larger foundation models or patch pooling for CLIP would "
-     "change the ranking; and the unexplained occluded-set reproduction difference vs the paper.")
+     f"ranges, and improving on the previous best DINOv2 result (1.439 cm CLS last-block).")
+para("3) Over the baseline itself: YES, via ensembling. A three-model ensemble (MobileNetV2 + "
+     "ConvNeXt-Tiny + CLIP frozen, unweighted mean) SELECTED ON VALIDATION and reported ONCE on test "
+     "reaches 0.735 cm full-test MAE vs the baseline's 0.771 cm — a 4.7% improvement, driven by the "
+     "occluded case (0.835 vs 0.909 cm, an 8% gain); non-occluded is essentially tied (0.635 vs "
+     "0.633). The ensemble members were chosen purely on validation MAE, so the test number is not "
+     "tuned on test.")
+para("Why it is credible: identical dataset, split, inputs and metrics; the DINOv2 result uses three "
+     "seeds with separated ranges; the ensemble is validation-selected and reported once on test.")
+para("Caveats: the ensemble uses three models at inference (more compute, not a single better model); "
+     "its gain is concentrated on occluded fish; underlying single models are single-seed.")
+para("What remains uncertain: whether the small single-model length gaps are significant (needs "
+     "multi-seed baselines); whether larger foundation models or patch pooling for CLIP would change "
+     "the ranking; and the unexplained occluded-set reproduction difference vs the paper.")
 
 # ================= 8. REPRODUCIBILITY =================
 h("8. Reproducibility", 1)
