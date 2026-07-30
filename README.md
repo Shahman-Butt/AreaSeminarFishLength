@@ -37,14 +37,34 @@ geometry.
 is within 0.010 cm and a tuned recipe is likely to cross it (future work). A reliable
 improvement was achieved within DINOv2 (patch tokens beat CLS).
 
-### Key documents
-- Final Word report: `docs/AutoFish_Final_Report.docx`
+### Result figures
+
+Single-model comparison (full-test MAE, cm — lower is better):
+
+![Single-model ranking](results/figures/length_ranking.png)
+
+EfficientNet-B0 is only 0.010 cm from the baseline — the strongest single-model candidate:
+
+![Closest single models](results/figures/closest_single_models.png)
+
+Reliable DINOv2 improvement (3 seeds) and the species-classification sub-task:
+
+![Patch vs CLS](results/figures/patch_vs_cls.png)
+![Species classification](results/figures/species_accuracy.png)
+
+### Submission deliverables (for the seminar)
+- **A3 poster (v2):** `poster/AutoFish_A3_poster.pdf` (source `poster/AutoFish_A3_poster.html`)
+- **ODE protocol:** `docs/ODE_REPORT.pdf` (source `docs/ODE_REPORT.md`)
+- **Code:** this repository
+
+### Supporting documents
+- Guiding-questions answers (layman + technical): `docs/GUIDING_QUESTIONS_ANSWERS.pdf`
+- Full Word report (start-to-end): `docs/AutoFish_Final_Report.docx`
 - Complete layman guide + hyperparameter tuning: `docs/PROJECT_COMPLETE_GUIDE.md`
+- Animated HTML explainer: `docs/project_explainer.html`
 - Experiment audit (no-repeat inventory): `docs/EXPERIMENT_AUDIT.md`
 - Professor question/answer checklist: `docs/PROFESSOR_CHECKLIST.md`
-- Animated explainer: `docs/project_explainer.html`
 - Result charts: `results/figures/` · Error analysis: `results/error_analysis/` · Qualitative: `results/qualitative/`
-- Poster: `poster/AutoFish_A3_poster.html`
 
 ### Reproducing the new experiments
 ```bash
