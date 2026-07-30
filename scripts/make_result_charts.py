@@ -95,6 +95,28 @@ fig.tight_layout()
 fig.savefig(OUT / "species_accuracy.png", dpi=170, bbox_inches="tight")
 plt.close(fig)
 
+# ---------- 4. Ensemble vs baseline (grouped bars, by subset) ----------
+import statistics as _st
+subsets = ["Full test", "Non-occluded", "Occluded"]
+baseline_vals = [0.771, 0.633, 0.909]
+ensemble_vals = [0.711, 0.600, 0.822]  # validation-selected weighted ensemble, reported on test
+fig, ax = plt.subplots(figsize=(6.0, 3.8))
+x = range(len(subsets)); w = 0.38
+b1 = ax.bar([i - w/2 for i in x], baseline_vals, w, label="MobileNetV2 baseline", color=MUT)
+b2 = ax.bar([i + w/2 for i in x], ensemble_vals, w, label="Ensemble (val-selected)", color=GREEN)
+for bars in (b1, b2):
+    for bar in bars:
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.015,
+                f"{bar.get_height():.3f}", ha="center", fontsize=8.5, color=INK)
+ax.set_xticks(list(x)); ax.set_xticklabels(subsets, fontsize=9.5)
+ax.set_ylabel("MAE (cm) — lower is better", fontsize=9.5)
+ax.set_title("Beating the baseline: 3-model ensemble", fontsize=12, fontweight="bold", color=INK)
+ax.set_ylim(0, 1.0); ax.legend(fontsize=8.5, frameon=False)
+ax.spines[["top", "right"]].set_visible(False)
+fig.tight_layout()
+fig.savefig(OUT / "ensemble_vs_baseline.png", dpi=170, bbox_inches="tight")
+plt.close(fig)
+
 print("wrote charts to", OUT)
 for p in sorted(OUT.glob("*.png")):
     print(" -", p.name)

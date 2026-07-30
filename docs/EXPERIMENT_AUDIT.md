@@ -113,3 +113,37 @@ MobileNetV2 baseline outright is **not yet demonstrated** and is reported as suc
 
 *Live status of the new runs is in the server file `queue_logs/new_experiments.log`. Results are
 pulled to `runs/` and committed as each completes; final compiled outputs follow completion.*
+
+---
+
+## 6. Round-2 update (reliability + beating the baseline)
+
+### Newly completed (do not repeat)
+- **Ensemble beats the baseline.** Validation-selected 3-model unweighted mean
+  (MobileNetV2+ConvNeXt+CLIP-frozen) = **0.735 cm** test; validation-selected **weighted** mean
+  (MobileNetV2×3 + ConvNeXt + CLIP-frozen) = **0.711 cm** test vs baseline 0.771 — beats it on both
+  non-occluded (0.600) and occluded (0.822). Chosen on validation, reported once on test.
+  (`scripts/ensemble_select.py`, `results/ensemble/`.)
+- **Validation predictions** saved for 5 models (`runs/*/val_metrics.predictions.csv`).
+
+### Running now (persistent tmux `relq`) — genuinely new
+- **EfficientNet-B0** (new supervised encoder; same recipe as ConvNeXt).
+- **Multi-seed** MobileNetV2 (s1,s2) and ConvNeXt-Tiny (s1,s2) — reliability for the top single
+  models and the ensemble's inputs. Reason it's new/necessary: only DINOv2 patch/CLS had multi-seed;
+  the top length models and the ensemble were single-seed.
+
+### MANDATORY professor requirement still missing
+| Professor request | Status |
+|---|---|
+| Species classification | ✅ done |
+| Example images + visualized model-difference results on poster | ✅ done |
+| When does CLIP beat MobileNet | ✅ done |
+| CLS vs patch tokens | ✅ done (patch reliably better) |
+| Same-parameters clarification | ✅ done |
+| **Mask segmentation** | ❌ **NOT done — the one outstanding mandatory item** |
+| DINOv3 | ⛔ blocked (license-gated weights, needs access request) |
+
+**Segmentation options:** (a) lightweight per-crop fish/background segmentation on raw (unmasked)
+crops with the same encoders, scored by IoU — feasible, a proxy for the paper's instance
+segmentation; (b) full instance segmentation (Mask2Former-style) — multi-day, GPU-intensive.
+Recommendation: do (a) as a controlled encoder comparison; scope (b) as future work.
