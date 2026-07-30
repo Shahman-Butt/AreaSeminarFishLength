@@ -185,10 +185,16 @@
   <div class="reveal">
     <div class="kicker">Results</div>
     <h2>Length estimation — model comparison</h2>
-    <p class="lead">Lower is better (full-test MAE, cm). The small purpose-trained CNN still wins;
-       patch-token DINOv2 is the best foundation-model configuration.</p>
+    <p class="lead">Lower is better (full-test MAE, cm). MobileNetV2 is the best single model —
+       but <b>EfficientNet-B0 is only 0.010 cm behind</b> at a basic recipe, so a tuned recipe
+       (cosine schedule, weight decay, more epochs) is likely to cross the baseline: ongoing / future work.</p>
   </div>
   <div class="bars reveal" id="lenBars"></div>
+  <div class="callout reveal" style="border-left-color:#eda100;background:linear-gradient(135deg,#fdf6e8,#f7f8fb)">
+    <b style="color:#b06f00">Knocking on the door:</b> EfficientNet-B0 reaches 0.781 cm vs the baseline's
+    0.771 cm using a weaker recipe than the baseline. A validation-selected recipe search is running to
+    try to beat it with a single model.
+  </div>
 </section>
 
 <section>
@@ -269,6 +275,7 @@
   // bar data
   const lenData=[
     ['MobileNetV2',0.771,'#2a78d6','best'],
+    ['EfficientNet-B0',0.781,'#eda100','new'],
     ['ConvNeXt-Tiny',0.914,'#2a78d6',''],
     ['CLIP last-block',0.958,'#1baf7a',''],
     ['CLIP frozen',1.002,'#1baf7a',''],
