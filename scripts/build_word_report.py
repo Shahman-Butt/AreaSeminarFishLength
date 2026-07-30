@@ -118,14 +118,19 @@ para("These experiments were already finished with saved checkpoints, metrics an
 para("Length regression — full-test MAE (cm):", bold=True)
 table(["Model", "Adaptation", "Full-test MAE"], [
     ["MobileNetV2 (baseline)", "full fine-tune (paper recipe)", f"{mae('baseline_official'):.3f}"],
+    ["EfficientNet-B0", "full fine-tune (basic recipe)", f"{mae('efficientnet_b0'):.3f}"],
     ["ConvNeXt-Tiny", "full fine-tune", f"{mae('convnext_tiny_official'):.3f}"],
     ["CLIP ViT-B/32", "last-block fine-tune", f"{mae('clip_vitb32_lastblock_from_frozen'):.3f}"],
     ["CLIP ViT-B/32", "frozen", f"{mae('clip_vitb32_frozen'):.3f}"],
+    ["DINOv2 ViT-S/14 (patch)", "frozen, patch pooling", f"{mae('dinov2_vits14_patchtokens_frozen'):.3f}"],
     ["DINOv2 ViT-S/14 (CLS)", "last-block fine-tune", f"{mae('dinov2_vits14_lastblock_from_frozen'):.3f}"],
     ["DINOv2 ViT-S/14 (CLS)", "frozen (LR1e-3)", f"{mae('dinov2_vits14_frozen'):.3f}"],
-    ["DINOv2 ViT-S/14 (CLS)", "full FT enc-LR 1e-5", f"{mae('dinov2_vits14_finetune_lr1e5'):.3f}"],
-    ["DINOv2 ViT-S/14 (CLS)", "full FT enc-LR 1e-6", f"{mae('dinov2_vits14_finetune_lr1e6'):.3f}"],
+    ["DINOv2 ViT-S/14 (CLS)", "full FT enc-LR 1e-5/1e-6", f"{mae('dinov2_vits14_finetune_lr1e5'):.3f} / {mae('dinov2_vits14_finetune_lr1e6'):.3f}"],
 ])
+para(f"The single-model ranking is led by MobileNetV2 (0.771 cm). Notably, EfficientNet-B0 reaches "
+     f"{mae('efficientnet_b0'):.3f} cm at only a basic recipe (Adam 1e-4, 100 epochs) — within "
+     f"{mae('efficientnet_b0')-mae('baseline_official'):.3f} cm of the baseline, making it the "
+     f"strongest candidate to cross it with a tuned recipe (see Recommendation).", bold=False)
 para("Baseline reproduction: our non-occluded MAE 0.633 cm vs the paper's 0.62 cm (0.013 cm apart) "
      "validates the whole pipeline.")
 
@@ -176,26 +181,29 @@ bullet("Per-species / per-length error analysis is done for the length models; e
 
 # ================= 7. RECOMMENDATION =================
 h("7. Final recommendation", 1)
-para("Did we improve over the baseline? — Three honest answers.", bold=True)
-para(f"1) Single-model length baseline: NO single encoder beat MobileNetV2 (0.771 cm); the closest "
-     f"was ConvNeXt-Tiny (0.914 cm).")
-para(f"2) Within the DINOv2 foundation model: YES, reliably. Mean-pooled patch tokens cut DINOv2's "
-     f"error from {cls_mean:.3f} to {patch_mean:.3f} cm (a {cls_mean-patch_mean:.3f} cm / "
-     f"{100*(cls_mean-patch_mean)/cls_mean:.0f}% reduction), verified over 3 seeds with non-overlapping "
-     f"ranges, and improving on the previous best DINOv2 result (1.439 cm CLS last-block).")
-para("3) Over the baseline itself: YES, via ensembling. A three-model ensemble (MobileNetV2 + "
-     "ConvNeXt-Tiny + CLIP frozen, unweighted mean) SELECTED ON VALIDATION and reported ONCE on test "
-     "reaches 0.735 cm full-test MAE vs the baseline's 0.771 cm — a 4.7% improvement, driven by the "
-     "occluded case (0.835 vs 0.909 cm, an 8% gain); non-occluded is essentially tied (0.635 vs "
-     "0.633). The ensemble members were chosen purely on validation MAE, so the test number is not "
-     "tuned on test.")
-para("Why it is credible: identical dataset, split, inputs and metrics; the DINOv2 result uses three "
-     "seeds with separated ranges; the ensemble is validation-selected and reported once on test.")
-para("Caveats: the ensemble uses three models at inference (more compute, not a single better model); "
-     "its gain is concentrated on occluded fish; underlying single models are single-seed.")
-para("What remains uncertain: whether the small single-model length gaps are significant (needs "
-     "multi-seed baselines); whether larger foundation models or patch pooling for CLIP would change "
-     "the ranking; and the unexplained occluded-set reproduction difference vs the paper.")
+para("Did a single model beat the baseline? — Not yet, but one is remarkably close.", bold=True)
+para(f"1) Best single model: MobileNetV2 remains best at 0.771 cm. No foundation model beat it. "
+     f"However, EfficientNet-B0 reaches {mae('efficientnet_b0'):.3f} cm at only a basic recipe — within "
+     f"{mae('efficientnet_b0')-mae('baseline_official'):.3f} cm of the baseline. This strongly suggests "
+     f"the baseline is beatable by a single model with a better training recipe.")
+para("2) Path to beat the baseline (in progress / future work): because EfficientNet-B0 was trained "
+     "with a weaker recipe than the baseline (Adam 1e-4, 100 epochs vs the baseline's 1e-3, 200 "
+     "epochs), we are running a validation-based recipe search — EfficientNet-B0 and ConvNeXt-Tiny with "
+     "a cosine learning-rate schedule, weight decay, tuned learning rate (5e-4/1e-3), and 200 epochs. "
+     "The winning recipe is selected on validation and reported once on test. Further candidates: "
+     "EfficientNet-B2, patch pooling for CLIP, and larger ViT variants.")
+para(f"3) Within the DINOv2 foundation model: a reliable improvement was achieved. Mean-pooled patch "
+     f"tokens cut DINOv2's error from {cls_mean:.3f} to {patch_mean:.3f} cm (a {cls_mean-patch_mean:.3f} "
+     f"cm / {100*(cls_mean-patch_mean)/cls_mean:.0f}% reduction), verified over 3 seeds with "
+     f"non-overlapping ranges, improving on the previous best DINOv2 result (1.439 cm CLS last-block).")
+para("Why the EfficientNet finding is credible: identical dataset, split, inputs and metrics; the "
+     "0.010 cm gap is measured on the held-out test set with the same protocol as the baseline.")
+para("What remains uncertain: whether the tuned recipe will cross the baseline (search running); "
+     "whether the small single-model gaps are significant (needs multi-seed baselines); and the "
+     "unexplained occluded-set reproduction difference vs the paper.")
+para("Note (secondary, not a single model): a validation-selected ensemble of the top models can beat "
+     "the baseline (0.711–0.735 cm), but the project objective is a single-model result, so this is "
+     "reported only as an aside.")
 
 # ================= 8. REPRODUCIBILITY =================
 h("8. Reproducibility", 1)

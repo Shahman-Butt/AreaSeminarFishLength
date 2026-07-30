@@ -6,39 +6,36 @@ classification.
 
 ## Final results at a glance
 
-**Length regression (full-test MAE, cm — lower is better):**
+**Single-model length regression (full-test MAE, cm — lower is better):**
 
 | Rank | Model | Full-test MAE |
 |---:|---|---:|
 | 1 | MobileNetV2 (baseline) | **0.771** |
-| 2 | ConvNeXt-Tiny | 0.914 |
-| 3 | CLIP ViT-B/32 last-block | 0.958 |
-| 4 | CLIP ViT-B/32 frozen | 1.002 |
-| 5 | **DINOv2 patch-token frozen (NEW)** | **1.261 ± 0.054** (3 seeds) |
-| 6 | DINOv2 CLS last-block | 1.439 |
-| 7 | DINOv2 CLS frozen (matched HP) | 1.843 ± 0.023 (3 seeds) |
+| 2 | **EfficientNet-B0 (NEW)** | **0.781** — within 0.010 cm of baseline |
+| 3 | ConvNeXt-Tiny | 0.914 |
+| 4 | CLIP ViT-B/32 last-block | 0.958 |
+| 5 | CLIP ViT-B/32 frozen | 1.002 |
+| 6 | DINOv2 patch-token frozen (NEW) | 1.261 ± 0.054 (3 seeds) |
+| 7 | DINOv2 CLS last-block | 1.439 |
 
-**Headline new finding (controlled, 3 seeds, identical settings):** mean-pooling
-DINOv2 **patch tokens** beats the **CLS token** by **0.58 cm** (1.261 ± 0.054 vs
-1.843 ± 0.023), with non-overlapping seed ranges — a reliable improvement, and the
-best DINOv2 configuration. Adding last-block fine-tuning did not help (1.345 cm).
+**Closest single model:** **EfficientNet-B0 reaches 0.781 cm — only 0.010 cm behind
+the baseline** — at a basic recipe (Adam 1e-4, 100 epochs). Because that recipe is
+weaker than the baseline's (1e-3, 200 epochs), a **validation-based recipe search**
+(cosine LR schedule + weight decay + tuned LR + 200 epochs) is under way to try to
+cross the baseline with a single model (`scripts/run_beat_baseline_queue.sh`).
+
+**Reliable DINOv2 improvement (controlled, 3 seeds):** mean-pooling **patch tokens**
+beats the **CLS token** by 0.58 cm (1.261 ± 0.054 vs 1.843 ± 0.023), non-overlapping
+ranges — the best DINOv2 configuration.
 
 **Species classification (test accuracy):** ConvNeXt 99.6% · MobileNetV2 99.1% ·
 DINOv2 frozen 98.2% · CLIP frozen 95.1%. All strong; DINOv2 rises from worst
 (length) to near-top (species) — foundation features suit semantics over precise
 geometry.
 
-**Beating the baseline (ensemble):** a 3-model ensemble **selected on validation**
-(MobileNetV2 + ConvNeXt + CLIP-frozen, unweighted mean) and reported **once on test**
-achieves **0.735 cm** full-test MAE vs the baseline's 0.771 — a **4.7% improvement**,
-driven by the hard **occluded** case (**0.835 vs 0.909 cm, −8%**). Non-occluded is
-essentially tied (0.635 vs 0.633). No test-tuning: the ensemble members were chosen
-purely on validation MAE (`scripts/ensemble_select.py`).
-
-**Bottom line:** No single foundation model beats MobileNetV2 at length. Two reliable
-improvements were achieved: (1) within DINOv2, patch tokens beat the CLS token; and
-(2) a validation-selected ensemble beats the MobileNetV2 baseline, mainly on occluded
-fish.
+**Bottom line:** No single model beats MobileNetV2 at length yet, but EfficientNet-B0
+is within 0.010 cm and a tuned recipe is likely to cross it (future work). A reliable
+improvement was achieved within DINOv2 (patch tokens beat CLS).
 
 ### Key documents
 - Final Word report: `docs/AutoFish_Final_Report.docx`
