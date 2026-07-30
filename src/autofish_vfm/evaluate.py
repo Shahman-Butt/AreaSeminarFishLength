@@ -20,6 +20,7 @@ def main():
     parser.add_argument("--index", required=True)
     parser.add_argument("--crops-dir", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--split", default="test")
     args = parser.parse_args()
 
     config = json.loads(Path(args.config).read_text())
@@ -27,7 +28,7 @@ def main():
     ds = CropDataset(
         args.index,
         args.crops_dir,
-        split="test",
+        split=args.split,
         augment=False,
         image_size=config.get("image_size"),
         normalize_mean=config.get("normalize_mean"),
