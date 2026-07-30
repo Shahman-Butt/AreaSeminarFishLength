@@ -69,6 +69,32 @@ class ConvNeXtRegressor(nn.Module):
         return self.classifier(features)
 
 
+class EfficientNetRegressor(nn.Module):
+    def __init__(self, variant="b0", bbox_input=True, pretrained=True, freeze_encoder=False, head=None):
+        super().__init__()
+        if variant != "b0":
+            raise ValueError("Only efficientnet_b0 is currently supported")
+        weights = models.EfficientNet_B0_Weights.IMAGENET1K_V1 if pretrained else None
+        self.features = models.efficientnet_b0(weights=weights)
+        if freeze_encoder:
+            for param in self.features.parameters():
+                param.requires_grad = False
+
+        n_inputs = self.features.classifier[-1].in_features
+        self.features.classifier = nn.Identity()
+        if bbox_input:
+            n_inputs += 4
+        self.bbox_input = bbox_input
+        self.classifier = make_regression_head(n_inputs, head or [512, 128, 1])
+
+    def forward(self, batch):
+        image, bbox = batch
+        features = self.features(image)
+        if self.bbox_input:
+            features = torch.cat([features, bbox], dim=1)
+        return self.classifier(features)
+
+
 class DINOv2Regressor(nn.Module):
     def __init__(
         self,
@@ -226,6 +252,14 @@ def build_model(config):
     if model_name == "convnext":
         return ConvNeXtRegressor(
             variant=config.get("convnext_variant", "tiny"),
+            bbox_input=config.get("bbox_input", True),
+            pretrained=config.get("pretrained", True),
+            freeze_encoder=config.get("freeze_encoder", False),
+            head=config.get("head"),
+        )
+    if model_name == "efficientnet":
+        return EfficientNetRegressor(
+            variant=config.get("efficientnet_variant", "b0"),
             bbox_input=config.get("bbox_input", True),
             pretrained=config.get("pretrained", True),
             freeze_encoder=config.get("freeze_encoder", False),

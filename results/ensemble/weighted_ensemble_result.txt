@@ -1,0 +1,8 @@
+Weighted ensemble (weights chosen on VALIDATION, reported once on TEST)
+  members/weights: MobileNetV2 x3 + ConvNeXt x1 + CLIP-frozen x1 (normalized)
+  validation MAE: 0.744 cm
+  TEST full:      0.711 cm   (baseline MobileNetV2 = 0.771)
+  TEST non-occ:   0.600 cm   (baseline 0.633)
+  TEST occluded:  0.822 cm   (baseline 0.909)
+  improvement:    +0.060 cm (+7.8%), beats baseline on BOTH subsets
+Unweighted 3-model ensemble (val-selected): 0.735 cm test.
