@@ -14,6 +14,7 @@ from .models import build_model
 
 
 def build_optimizer(model, config):
+    wd = config.get("weight_decay", 0.0)
     if config.get("encoder_learning_rate") and hasattr(model, "encoder"):
         encoder_params = [p for p in model.encoder.parameters() if p.requires_grad]
         head_params = [
@@ -30,11 +31,18 @@ def build_optimizer(model, config):
             param_groups.append(
                 {"params": head_params, "lr": config.get("head_learning_rate", config["learning_rate"])}
             )
-        return torch.optim.Adam(param_groups)
+        return torch.optim.Adam(param_groups, weight_decay=wd)
     return torch.optim.Adam(
         [p for p in model.parameters() if p.requires_grad],
         lr=config["learning_rate"],
+        weight_decay=wd,
     )
+
+
+def build_scheduler(optimizer, config):
+    if config.get("lr_schedule") == "cosine":
+        return torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config["epochs"])
+    return None
 
 
 def seed_everything(seed):
@@ -106,6 +114,7 @@ def main():
         model.load_state_dict(torch.load(config["resume_checkpoint"], map_location=device))
     criterion = nn.L1Loss() if config["loss"] == "l1" else nn.SmoothL1Loss()
     optimizer = build_optimizer(model, config)
+    scheduler = build_scheduler(optimizer, config)
 
     best_val = float("inf")
     history = []
@@ -139,6 +148,9 @@ def main():
         if val_metrics["mae_cm"] < best_val:
             best_val = val_metrics["mae_cm"]
             torch.save(model.state_dict(), out_dir / "best.pt")
+
+        if scheduler is not None:
+            scheduler.step()
 
     import pandas as pd
 
