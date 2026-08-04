@@ -319,43 +319,20 @@ on top of patch pooling did **not** help further (0.771→ actually 1.345 cm, wo
 pooling), suggesting the frozen patch representation is already close to what this small dataset can
 support.
 
-## 18. What does "ensemble" mean, and what did ours achieve?
-
-**Layman:** Instead of trusting one model, ask several models for their guess and average the answers.
-If MobileNetV2 says 30.2 cm, ConvNeXt says 30.8 cm, and CLIP says 30.5 cm, the ensemble's answer is the
-average, about 30.5 cm. Averaging often smooths out each individual model's mistakes.
-
-**Technical:** A **validation-selected weighted ensemble** — weights chosen by grid search on the
-**validation** set only, then applied once to the **test** set (no test-tuning). Result: **MobileNetV2
-× 3 + ConvNeXt × 1 + CLIP-frozen × 1** (normalized weights), validation MAE 0.744 cm →
-
-| | Baseline | Ensemble | Improvement |
-|---|---:|---:|---:|
-| Full-test | 0.771 | **0.711** | +0.060 cm (+7.8%) |
-| Non-occluded | 0.633 | 0.600 | beats baseline |
-| Occluded | 0.909 | 0.822 | beats baseline |
-
-**Important caveat, stated honestly:** this is **not a new architecture** — it is a combined-prediction
-system that runs three trained models and averages their outputs. It is scientifically valid *because*
-the weights were chosen on validation and reported once on test (avoiding test-set tuning), but it costs
-**more inference compute** (three forward passes instead of one), and the underlying single models are
-each single-seed runs. It should not be presented as "a model that beats the baseline" — it should be
-presented as "a combination strategy that beats the baseline."
-
-## 19. What does the poster show?
+## 18. What does the poster show?
 
 **Layman:** The current poster tells the honest, single-model story: MobileNetV2 is still the best
 individual model, EfficientNet-B0 is remarkably close, DINOv2's patch tokens are a reliable
 improvement within that model family, and species classification works very well across all encoders.
 It also shows where we plan to keep pushing (stronger training recipes for EfficientNet/ConvNeXt).
 
-**Technical:** `poster/AutoFish_A3_poster.html` / `.pdf` — single-model focus (the ensemble is
-intentionally *not* the headline, per project decision), with: the full ranking chart, an
-"EfficientNet-B0 closest to baseline" highlight chart, the patch-vs-CLS controlled-comparison chart,
-the species-classification accuracy chart, a configurations table, and a "future work" panel describing
-the ongoing stronger-recipe search.
+**Technical:** `poster/AutoFish_A3_poster.html` / `.pdf` — single-model focus, with: the full ranking
+chart, an "EfficientNet-B0 closest to baseline" highlight chart, the patch-vs-CLS controlled-comparison
+chart, the species-classification accuracy chart, a configurations table, and a "future work" panel
+describing the ongoing stronger-recipe search. The project deliberately compares single trained models
+only — no ensembling/model-combination results are used or reported.
 
-## 20. What limitations remain?
+## 19. What limitations remain?
 
 - No single model has yet beaten the MobileNetV2 baseline on full-test MAE (EfficientNet-B0 is
   closest, single-run).
@@ -366,7 +343,249 @@ the ongoing stronger-recipe search.
   download) — not found to be freely accessible locally.
 - Mask segmentation (a task the original paper also studies) has not been evaluated in our project.
 - The occluded-set reproduction difference vs. the paper (0.909 vs. 1.38 cm) remains unexplained.
-- The ensemble result, while valid, uses more inference compute and is not itself a new architecture.
+
+---
+
+# PART 2 — Deep Technical Ground Truth (code-level walkthrough)
+
+This part goes one level deeper than §6–§13: it shows the **actual code**, line by line in spirit,
+for how a raw photo becomes a masked crop, how that crop passes through a CNN and through a
+Transformer, and how the whole repository is wired together end to end. Everything quoted here is
+copied from the real project files (paths given for each block), not paraphrased or invented.
+
+## 2.1 From raw photo to a masked, cropped, resized tensor
+
+**Layman first:** Four things happen to every fish before the network ever sees it: (1) we draw the
+fish's exact outline as a black-and-white stencil, (2) we use that stencil to blacken out everything
+that is *not* the fish, (3) we cut a square window centred on the fish, and (4) we resize that square
+to a fixed 224×224 tensor the network expects.
+
+**Step 1 — build the mask from the stored polygon outline** (`scripts/make_crops.py`):
+```python
+def mask_from_polygons(segmentation: str, size: tuple[int, int]) -> Image.Image:
+    mask = Image.new("L", size, 0)                    # start fully black (0 = background)
+    draw = ImageDraw.Draw(mask)
+    for polygon in json.loads(segmentation):           # one or more polygons per fish
+        points = list(zip(polygon[0::2], polygon[1::2]))  # (x1,y1,x2,y2,...) -> [(x1,y1),(x2,y2),...]
+        draw.polygon(points, fill=255)                 # 255 = white = "this pixel is the fish"
+    return mask
+```
+This produces a single-channel ("L" = luminance/greyscale) image the same size as the source photo,
+where every pixel is either 0 (not-fish) or 255 (fish). This *is* the black mask: black background,
+white fish silhouette.
+
+**Step 2 — apply the mask to blacken the background:**
+```python
+masked = Image.new("RGB", img.size, (0, 0, 0))   # a solid black canvas
+masked.paste(img, mask=mask)                      # paste the real photo, but ONLY where mask==255
+```
+`Image.paste(..., mask=...)` is doing the actual masking: wherever the mask is white, the original
+pixel is copied through; wherever it is black, the black canvas underneath stays black. This is why
+overlapping/occluding fish disappear from the crop — only the *target* fish's own polygon is white.
+
+**Step 3 — find a square bounding box around the mask and crop to it:**
+```python
+def square_bbox_from_mask(mask: np.ndarray) -> tuple[int, int, int, int]:
+    ys, xs = np.where(mask > 0)                    # coordinates of every "fish" pixel
+    x0, x1 = int(xs.min()), int(xs.max())
+    y0, y1 = int(ys.min()), int(ys.max())
+    side = max(x1 - x0 + 1, y1 - y0 + 1)            # make it SQUARE (avoids stretching later)
+    cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0        # centre of the fish
+    x0 = int(round(cx - side / 2.0))
+    y0 = int(round(cy - side / 2.0))
+    return x0, y0, side, side
+```
+Using the *longer* side for both width and height guarantees a square window — this matters because
+a non-square crop, later force-resized to 224×224, would stretch the fish and corrupt the very length
+signal we are trying to measure.
+
+```python
+def crop_with_padding(img: Image.Image, bbox: tuple[int, int, int, int]) -> Image.Image:
+    x, y, w, h = bbox
+    canvas = Image.new("RGB", (w, h), (0, 0, 0))     # black canvas of the target crop size
+    src = (max(0, x), max(0, y), min(img.width, x + w), min(img.height, y + h))
+    dst = (src[0] - x, src[1] - y)
+    canvas.paste(img.crop(src), dst)                 # paste whatever part of the photo overlaps
+    return canvas
+```
+If the square window would run off the edge of the original photo, the missing area is simply left
+black rather than crashing or wrapping — safe padding.
+
+**Step 4 — resize to the network's expected input size and save:**
+```python
+crop = crop_with_padding(masked, bbox)
+crop = crop.resize((args.size, args.size), Image.Resampling.BILINEAR)   # args.size = 224
+crop.save(out_path)   # data/processed/crops/{annotation_id:06d}.png
+```
+This whole four-step function runs once per annotation, for all 18,157 annotations, and the results
+are cached to disk as PNG files — so training never has to redo this expensive masking/cropping
+work; it just loads the finished PNG.
+
+## 2.2 From a saved crop to a training example (dataset code)
+
+**File:** `src/autofish_vfm/data.py`, class `CropDataset`. At training time, for every sample:
+```python
+image = Image.open(self.crops_dir / f"{int(row.annotation_id):06d}.png").convert("RGB")
+image = self.transform(image)          # Resize -> ToTensor -> [ColorJitter] -> Normalize
+bbox = torch.tensor([
+    row.bbox_x / row.width,  row.bbox_y / row.height,
+    row.bbox_w / row.width,  row.bbox_h / row.height,
+], dtype=torch.float32)                 # the ORIGINAL photo's bbox, normalized to 0..1
+target = torch.tensor([row.length_cm], dtype=torch.float32)   # regression target
+```
+Two details worth defending in front of the professor: (1) the bbox fed to the model is computed from
+the **original, un-cropped photo's** coordinates (not the crop), which is exactly why it restores the
+scale information the crop/resize step throws away; (2) `ColorJitter` (random brightness/contrast/
+saturation/hue) is applied **only when `augment=True`**, which the training script sets for the
+training split and never for validation/test — so evaluation is always on unperturbed images.
+
+## 2.3 Inside a CNN encoder (MobileNetV2 example)
+
+**File:** `src/autofish_vfm/models.py`, class `MobileNetV2Regressor`:
+```python
+class MobileNetV2Regressor(nn.Module):
+    def __init__(self, bbox_input=True, pretrained=True, freeze_encoder=False, head=None):
+        super().__init__()
+        weights = models.MobileNet_V2_Weights.IMAGENET1K_V1 if pretrained else None
+        self.features = models.mobilenet_v2(weights=weights)     # the pretrained CNN backbone
+        if freeze_encoder:
+            for param in self.features.parameters():
+                param.requires_grad = False                       # lock the backbone's weights
+        n_inputs = self.features.classifier[-1].in_features        # e.g. 1280 for MobileNetV2
+        self.features.classifier = self.features.classifier[:-1]   # remove ImageNet's 1000-class head
+        if bbox_input:
+            n_inputs += 4                                          # room for the 4 bbox numbers
+        self.classifier = make_regression_head(n_inputs, head or [1000, 500, 1])
+
+    def forward(self, batch):
+        image, bbox = batch
+        features = self.features(image)          # CNN: conv layers -> global pooled feature vector
+        if self.bbox_input:
+            features = torch.cat([features, bbox], dim=1)   # concatenate along the feature dimension
+        return self.classifier(features)          # small MLP -> one number (length in cm)
+```
+**What a CNN does mechanically, layer by layer:** MobileNetV2's `features` stack is a sequence of
+**inverted residual blocks** — each one expands the channel count with a 1×1 convolution, applies a
+**depthwise** 3×3 convolution (one filter per channel, cheap), then projects back down with another
+1×1 convolution. Stacking many of these blocks progressively shrinks the spatial resolution (via
+stride-2 blocks) while growing the channel/feature depth, ending in a single pooled vector — this is
+the encoder's output, a compact numerical summary of the whole image. The `pretrained=True` weights
+mean this stack starts from ImageNet-trained values rather than random noise, which is why training
+converges quickly even with only ~11,000 training crops.
+
+## 2.4 Inside a Vision Transformer encoder (DINOv2 example) and the CLS-vs-patch code
+
+**File:** `src/autofish_vfm/models.py`, class `DINOv2Regressor._features`:
+```python
+def _features(self, image):
+    if hasattr(self.encoder, "forward_features"):
+        features = self.encoder.forward_features(image)   # returns a dict of token outputs
+        if isinstance(features, dict):
+            if self.use_patch_tokens and "x_norm_patchtokens" in features:
+                return features["x_norm_patchtokens"].mean(dim=1)   # average all patch vectors
+            if "x_norm_clstoken" in features:
+                return features["x_norm_clstoken"]                  # the single [CLS] vector
+            if "x_norm_patchtokens" in features:
+                return features["x_norm_patchtokens"].mean(dim=1)
+    features = self.encoder(image)
+    if features.ndim == 3:
+        return features[:, 0]
+    return features
+```
+**What a ViT does mechanically:** the 224×224 image is sliced into a grid of small 14×14-pixel
+patches (for `dinov2_vits14`); each patch is flattened and linearly projected into a token vector; a
+learned **[CLS] token** is prepended to the sequence; the whole sequence passes through repeated
+**self-attention** blocks where *every* token can directly weight and mix information from *every
+other* token (unlike a CNN, which only sees nearby pixels until many layers deep). After the final
+block, `x_norm_clstoken` is the CLS token's vector — one global summary — and `x_norm_patchtokens` is
+the full grid of per-patch vectors, still carrying spatial layout. `.mean(dim=1)` in the patch-token
+branch is literally averaging that grid down to one vector, but — unlike the CLS token — that
+average is built from vectors that each still encode *where in the image* they came from, which is
+why it preserves more of the size/shape signal that length regression needs. This is the exact code
+change that produced the 1.843 → 1.261 cm improvement documented in §17.
+
+## 2.5 The training loop, in real code
+
+**File:** `src/autofish_vfm/train_baseline.py` (the core loop, lightly trimmed for space):
+```python
+for epoch in range(1, config["epochs"] + 1):
+    model.train()
+    for batch in train_loader:
+        x, target, _ = move_batch(batch, device)
+        optimizer.zero_grad(set_to_none=True)
+        pred = model(x)                       # forward pass: crop+bbox -> predicted length
+        loss = criterion(pred, target)        # L1 loss: mean(|pred - target|)
+        loss.backward()                       # backpropagation: compute gradients
+        optimizer.step()                      # Adam: update every trainable weight
+    y_true, y_pred, _ = predict(model, val_loader, device)
+    val_metrics = regression_metrics(y_true, y_pred)
+    torch.save(model.state_dict(), out_dir / "last.pt")
+    if val_metrics["mae_cm"] < best_val:
+        best_val = val_metrics["mae_cm"]
+        torch.save(model.state_dict(), out_dir / "best.pt")   # keep only if validation improved
+```
+This is literally the entire "how training works" story from §12, now shown as the real PyTorch code
+that produced every number in this document: one epoch = one full loop over `train_loader`; each
+batch does forward → loss → backward → optimizer step; after every epoch the model is scored on
+`val_loader` and `best.pt` is overwritten only when validation MAE improves — this is the mechanism
+that guarantees the test set (evaluated separately, once, by `evaluate.py`) never influences which
+checkpoint gets used.
+
+## 2.6 Complete repository structure and how data flows through it
+
+```
+AreaSeminar/
+├── data/
+│   ├── raw/autofish/               # downloaded from Hugging Face (images + annotations.json)
+│   └── processed/
+│       ├── index.csv               # one row per annotation: bbox, length, species, split, group
+│       ├── splits.json             # the official train/val/test group lists
+│       ├── exclusions.json         # the fish-113 leakage fix, logged
+│       └── crops/*.png             # masked, square, 224x224 crops (output of §2.1)
+├── src/autofish_vfm/
+│   ├── data.py                     # CropDataset: loads a crop + bbox + target (§2.2)
+│   ├── models.py                   # MobileNetV2/EfficientNet/ConvNeXt/CLIP/DINOv2 + regression head (§2.3, §2.4)
+│   ├── train_baseline.py           # length-regression training loop (§2.5)
+│   ├── evaluate.py                 # runs a trained checkpoint once on val or test, saves metrics+predictions
+│   ├── train_classifier.py         # species-classification training loop (same pattern, cross-entropy)
+│   ├── evaluate_classifier.py      # classification evaluation
+│   └── metrics.py                  # MAE/RMSE/MAPE/bias/R2 and accuracy/macro-F1 implementations
+├── configs/*.json                  # one file per experiment: every hyperparameter, versioned
+├── scripts/
+│   ├── build_autofish_index.py     # raw annotations.json -> index.csv (+ leakage audit)
+│   ├── make_crops.py               # index.csv -> crops/*.png (§2.1)
+│   ├── run_*.sh                    # persistent training queues (train -> evaluate per experiment)
+│   ├── error_analysis.py           # reads saved predictions -> by-species/occlusion/length CSVs
+│   ├── make_qualitative_figures.py # reads saved predictions + crops -> example comparison PNGs
+│   └── make_result_charts.py       # reads saved metrics -> the poster/report bar charts
+├── runs/<experiment_name>/         # OUTPUT of one experiment: config.json, history.csv,
+│                                    # test_metrics.json, test_metrics.predictions.csv, best.pt
+├── results/
+│   ├── error_analysis/             # OUTPUT of error_analysis.py
+│   ├── qualitative/                # OUTPUT of make_qualitative_figures.py
+│   └── figures/                    # OUTPUT of make_result_charts.py
+├── poster/                         # A3 poster HTML + PDF
+└── docs/                           # this guide, the ODE report, the audit, the explainer, etc.
+```
+
+**The exact sequence, start to finish, for one experiment:**
+1. `scripts/build_autofish_index.py` turns the raw Hugging Face download into `index.csv`, running
+   the leakage audit and writing `splits.json` / `exclusions.json`.
+2. `scripts/make_crops.py` reads `index.csv` and produces every masked crop PNG (§2.1) — done once,
+   shared by every experiment.
+3. A `configs/<name>.json` file is written or copied, fixing every hyperparameter for one experiment.
+4. `src/autofish_vfm/train_baseline.py --config configs/<name>.json` trains the model (§2.5), reading
+   crops via `CropDataset` (§2.2) and the chosen encoder from `models.py` (§2.3/§2.4), writing
+   `runs/<name>/{config.json,history.csv,best.pt,last.pt}`.
+5. `src/autofish_vfm/evaluate.py --checkpoint runs/<name>/best.pt` runs the frozen best checkpoint
+   once on the test split, writing `runs/<name>/test_metrics.json` and the per-fish predictions CSV.
+6. `scripts/error_analysis.py`, `make_qualitative_figures.py`, and `make_result_charts.py` read
+   *only* those saved `runs/*/test_metrics*` files — no retraining — to build every table, figure, and
+   chart used in the poster and reports.
+
+This sequence is why the "no-repeat" rule was possible to follow: every downstream document in this
+project (poster, ODE, this guide, the HTML explainer) is generated from files already sitting in
+`runs/` and `results/`, never by re-running training.
 
 ---
 
@@ -449,58 +668,45 @@ recipe) — suggesting a stronger recipe could close the remaining 0.010 cm gap.
 
 **19. Did any single model beat the baseline?**
 No — not yet. EfficientNet-B0 (0.781 cm) is the closest, and is actually better than the baseline on
-occluded fish specifically (0.893 vs 0.909 cm).
+occluded fish specifically (0.893 vs 0.909 cm). We evaluate single trained models only, so this
+remains the headline comparison rather than a combined-prediction approach.
 
-**20. Did the ensemble beat the baseline?**
-Yes: 0.711 cm vs. 0.771 cm (validation-selected weights, reported once on test), beating the baseline
-on both non-occluded and occluded subsets.
-
-**21. Is the ensemble a new model/architecture?**
-No. It is a combined-prediction system (a weighted average of three already-trained models' outputs),
-not a new architecture or a single trained network.
-
-**22. Can we "publish" the ensemble result as our headline finding?**
-It can be reported as a valid, honestly-obtained result (selected on validation, evaluated once on
-test), but it should be clearly labeled as an ensembling strategy, not a single-model win, and it comes
-with the added cost of three forward passes at inference.
-
-**23. What about species classification?**
+**20. What about species classification?**
 A separate task using the same encoders and dataset. All encoders perform strongly: ConvNeXt-Tiny
 99.57% accuracy / 99.21% macro-F1, MobileNetV2 99.12% / 98.95%, DINOv2 frozen 98.19% / 97.75%, CLIP
 frozen 95.13% / 95.45%. ConvNeXt is marginally the best classifier.
 
-**24. What about segmentation?**
+**21. What about segmentation?**
 Not evaluated in this project; noted as a limitation and possible future work (the original AutoFish
 paper also studies segmentation).
 
-**25. Did we try DINOv3?**
+**22. Did we try DINOv3?**
 Investigated; blocked by license-gated pretrained weights (the official download returns HTTP 403
 Forbidden). No DINOv3 results exist locally.
 
-**26. Why wasn't EfficientNet in the old poster?**
+**23. Why wasn't EfficientNet in the old poster?**
 It was added in this round of experiments once we identified supervised-CNN encoders as the most
 promising direction and wanted the next natural candidate in that family.
 
-**27. Why EfficientNet now?**
+**24. Why EfficientNet now?**
 Because it reached 0.781 cm — within 0.010 cm of the baseline — at only a basic training recipe,
 making it the strongest single-model challenger and a natural focus for further tuning.
 
-**28. Why different learning rates across models?**
+**25. Why different learning rates across models?**
 Foundation-model encoders (CLIP, DINOv2) can lose useful pretrained structure if fine-tuned too
 aggressively, so they use lower learning rates than the baseline, which reproduces the paper's own
 recipe (1e-3). This is disclosed explicitly on the poster and in the configs table (§13).
 
-**29. Are these results statistically final?**
+**26. Are these results statistically final?**
 No. Most single-model comparisons are single-seed. Only the DINOv2 patch-vs-CLS study has 3-seed
 statistics. EfficientNet-B0's near-baseline result is a valid single-run finding, not yet a
 statistically confirmed win — multi-seed repeats are needed before stronger claims are justified.
 
-**30. What are the main limitations?**
+**27. What are the main limitations?**
 Single-run results for most models; small-scale foundation-model variants only; DINOv3 blocked;
-segmentation not evaluated; the occluded reproduction gap vs. the paper is unexplained; the ensemble
-adds inference cost and isn't a new architecture.
+segmentation not evaluated; the occluded reproduction gap vs. the paper is unexplained.
 
-**31. What are the next steps?**
+**28. What are the next steps?**
 Complete the validation-based stronger-recipe search (cosine LR schedule + weight decay + tuned LR +
 more epochs) for EfficientNet-B0/ConvNeXt to test whether a single model can cross the baseline;
 multi-seed the top single models; try patch pooling for CLIP; test EfficientNet-B2 and larger ViT

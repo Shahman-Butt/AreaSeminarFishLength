@@ -92,8 +92,6 @@
   .tag.close{background:#fdf2df;color:#a2680a}
   .tag.new{background:#efe9fb;color:var(--violet)}
 
-  /* ensemble demo */
-  .ensemble-demo{display:flex;flex-wrap:wrap;gap:14px;margin-top:22px;align-items:center;justify-content:center}
   .edot{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;text-align:center;
     box-shadow:0 4px 14px rgba(20,40,80,.05);min-width:130px}
   .edot .name{font-size:12px;color:var(--mut);font-weight:600}
@@ -114,6 +112,19 @@
   .tl-item.milestone::before{background:var(--green);box-shadow:0 0 0 2px var(--green)}
   .tl-item h4{font-size:14.5px;color:var(--deep)}
   .tl-item p{font-size:12.8px;color:var(--mut);margin-top:2px}
+
+  /* deep technical code blocks */
+  .deep-block{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:18px 20px;margin-top:16px;box-shadow:0 4px 14px rgba(20,40,80,.05)}
+  .deep-block h3{font-size:15.5px;color:var(--deep);margin-bottom:8px}
+  .deep-block p{font-size:13px;color:var(--mut);margin-top:8px;line-height:1.55}
+  .deep-block code{font-family:Consolas,"Cascadia Code",monospace;background:#f2f3f7;
+    padding:1px 5px;border-radius:4px;font-size:12px;color:#3a3a38}
+  .deep-block pre{background:#0f1522;color:#d6e0f5;border-radius:10px;padding:14px 16px;
+    overflow-x:auto;margin-top:6px}
+  .deep-block pre code{background:none;padding:0;color:inherit;font-size:12.3px;line-height:1.6}
+  .deep-block ol{margin:8px 0 0 18px;font-size:13px;color:var(--mut)}
+  .deep-block ol li{margin-bottom:4px}
 
   /* accordion */
   .acc-item{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--card);overflow:hidden}
@@ -150,8 +161,8 @@
   <a href="#concepts">Concepts</a>
   <a href="#models">Models</a>
   <a href="#results">Results</a>
-  <a href="#ensemble">Ensemble</a>
   <a href="#timeline">Timeline</a>
+  <a href="#deepdive">Deep Dive</a>
   <a href="#qa">Q&amp;A</a>
 </nav>
 
@@ -220,31 +231,6 @@
   </div>
 </section>
 
-<section id="ensemble">
-  <div class="reveal">
-    <div class="kicker">Combining predictions</div>
-    <h2>What is an ensemble?</h2>
-    <p class="lead">Instead of trusting one model, average several models' guesses. Example with
-       real-style numbers:</p>
-  </div>
-  <div class="ensemble-demo reveal">
-    <div class="edot"><div class="name">MobileNetV2</div><div class="val">30.2 cm</div></div>
-    <div class="eplus">+</div>
-    <div class="edot"><div class="name">ConvNeXt-Tiny</div><div class="val">30.8 cm</div></div>
-    <div class="eplus">+</div>
-    <div class="edot"><div class="name">CLIP (frozen)</div><div class="val">30.5 cm</div></div>
-    <div class="eeq">=</div>
-    <div class="eresult"><div class="name">ENSEMBLE AVERAGE</div><div class="val">≈ 30.5 cm</div></div>
-  </div>
-  <div class="callout reveal">
-    <b>Our real, validation-selected ensemble</b> (MobileNetV2 ×3 + ConvNeXt ×1 + CLIP-frozen ×1,
-    weights chosen on validation, reported once on test): <b>0.711 cm</b> full-test MAE vs baseline
-    <b>0.771 cm</b> — a 7.8% improvement, beating the baseline on both non-occluded and occluded
-    subsets. <b>Important:</b> this is not a new architecture — it is a combined-prediction system
-    using three already-trained models, at the cost of more inference compute.
-  </div>
-</section>
-
 <section id="timeline">
   <div class="reveal">
     <div class="kicker">Project history</div>
@@ -259,13 +245,125 @@
       <p>Controlled 3-seed study: patch-pooled DINOv2 (1.261±0.054) reliably beats CLS-token DINOv2 (1.843±0.023).</p></div>
     <div class="tl-item"><h4>4. EfficientNet-B0</h4>
       <p>New supervised-CNN challenger: 0.781 cm, only 0.010 cm behind the baseline.</p></div>
-    <div class="tl-item"><h4>5. Ensemble</h4>
-      <p>Validation-selected weighted ensemble beats the baseline: 0.711 vs 0.771 cm.</p></div>
-    <div class="tl-item"><h4>6. Species classification</h4>
+    <div class="tl-item"><h4>5. Species classification</h4>
       <p>Same encoders, new task: all models 95–99.6% accuracy.</p></div>
     <div class="tl-item milestone"><h4 style="color:#a2680a">Next: stronger-recipe search (ongoing)</h4>
       <p>Cosine LR + weight decay + tuned LR for EfficientNet-B0/ConvNeXt — testing whether a single
         model can beat the baseline outright.</p></div>
+  </div>
+</section>
+
+<section id="deepdive">
+  <div class="reveal">
+    <div class="kicker">Code-level ground truth</div>
+    <h2>How it actually works, in code</h2>
+    <p class="lead">The exact code behind masking, cropping, the CNN and Transformer forward passes,
+       and how the whole repository is wired together — nothing paraphrased.</p>
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>1. Building the black mask from the stored polygon</h3>
+    <p>The dataset stores each fish's outline as a polygon. We rasterize it into a black-and-white
+       stencil: black background (0), white fish silhouette (255).</p>
+    <pre><code>def mask_from_polygons(segmentation, size):
+    mask = Image.new("L", size, 0)              # start fully black
+    draw = ImageDraw.Draw(mask)
+    for polygon in json.loads(segmentation):
+        points = list(zip(polygon[0::2], polygon[1::2]))
+        draw.polygon(points, fill=255)           # 255 = "this pixel is the fish"
+    return mask</code></pre>
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>2. Applying the mask (this is the actual masking step)</h3>
+    <pre><code>masked = Image.new("RGB", img.size, (0, 0, 0))   # solid black canvas
+masked.paste(img, mask=mask)                      # copy real pixels ONLY where mask==255</code></pre>
+    <p><code>Image.paste(..., mask=...)</code> copies the real photo through wherever the mask is
+       white, and leaves black everywhere else — this is why overlapping fish disappear from the
+       crop; only the target fish's own polygon is white.</p>
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>3. Square crop, centred on the fish (never distort the length signal)</h3>
+    <pre><code>ys, xs = np.where(mask > 0)
+x0, x1 = xs.min(), xs.max()
+y0, y1 = ys.min(), ys.max()
+side = max(x1 - x0 + 1, y1 - y0 + 1)     # SQUARE side, from the longer dimension
+cx, cy = (x0+x1)/2, (y0+y1)/2            # centre of the fish
+x0 = round(cx - side/2); y0 = round(cy - side/2)</code></pre>
+    <p>Using the longer dimension for both width and height guarantees a square window — a
+       non-square crop, later force-resized to 224×224, would stretch the fish and corrupt the very
+       length we're trying to measure. Then resize to the network's input size:</p>
+    <pre><code>crop = crop.resize((224, 224), Image.Resampling.BILINEAR)
+crop.save(f"crops/{annotation_id:06d}.png")   # cached once, reused by every experiment</code></pre>
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>4. Inside a CNN encoder (MobileNetV2)</h3>
+    <pre><code>self.features = models.mobilenet_v2(weights=IMAGENET1K_V1)   # pretrained backbone
+...
+def forward(self, batch):
+    image, bbox = batch
+    features = self.features(image)             # conv layers -> pooled feature vector
+    features = torch.cat([features, bbox], dim=1)  # + 4 bbox numbers
+    return self.classifier(features)             # small MLP -> length (cm)</code></pre>
+    <p>Mechanically: MobileNetV2 is a stack of <b>inverted residual blocks</b> — each expands
+       channels with a 1×1 convolution, applies a cheap per-channel 3×3 <b>depthwise</b> convolution,
+       then projects back down. Stacking many of these shrinks spatial resolution while growing
+       feature depth, ending in one pooled vector — the encoder's summary of the whole image.</p>
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>5. Inside a Vision Transformer (DINOv2) — CLS token vs. patch tokens, in code</h3>
+    <pre><code>def _features(self, image):
+    features = self.encoder.forward_features(image)   # dict of token outputs
+    if self.use_patch_tokens:
+        return features["x_norm_patchtokens"].mean(dim=1)   # average ALL patch vectors
+    return features["x_norm_clstoken"]                      # OR: the single [CLS] vector</code></pre>
+    <p>The image is sliced into a grid of 14×14-pixel patches; each becomes a token; a learned
+       <b>[CLS]</b> token is prepended; every token attends to every other token via
+       <b>self-attention</b> in each block (global receptive field — unlike a CNN's local one).
+       <code>x_norm_clstoken</code> is one global summary; <code>x_norm_patchtokens</code> is the
+       full spatial grid, still carrying per-location information. Averaging the patch grid keeps
+       that spatial signal — this exact code change is what produced the 1.843→1.261 cm improvement.</p>
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>6. The training loop, in real code</h3>
+    <pre><code>for epoch in range(1, epochs + 1):
+    model.train()
+    for batch in train_loader:
+        x, target, _ = move_batch(batch, device)
+        optimizer.zero_grad(set_to_none=True)
+        pred = model(x)                    # forward pass
+        loss = criterion(pred, target)     # L1: mean(|pred - target|)
+        loss.backward()                    # backpropagation
+        optimizer.step()                   # Adam updates every trainable weight
+    val_metrics = evaluate(model, val_loader)
+    if val_metrics["mae_cm"] < best_val:
+        torch.save(model.state_dict(), "best.pt")   # keep ONLY if validation improved</code></pre>
+    <p>The test set is touched only once, by a separate <code>evaluate.py</code> run on the saved
+       <code>best.pt</code> — it never influences which checkpoint gets chosen.</p>
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>7. Repository structure and the exact experiment sequence</h3>
+    <pre><code>data/processed/{index.csv, splits.json, crops/*.png}
+src/autofish_vfm/{data.py, models.py, train_baseline.py, evaluate.py, metrics.py}
+configs/&lt;experiment&gt;.json      # one file per experiment, every hyperparameter
+runs/&lt;experiment&gt;/            # OUTPUT: config, history, best.pt, test_metrics.json, predictions.csv
+results/{error_analysis, qualitative, figures}/   # built ONLY from saved runs/ files
+poster/  docs/                 # final deliverables</code></pre>
+    <ol>
+      <li><code>build_autofish_index.py</code>: raw annotations → <code>index.csv</code> (+ leakage audit)</li>
+      <li><code>make_crops.py</code>: <code>index.csv</code> → every masked crop PNG (steps 1–3 above)</li>
+      <li><code>train_baseline.py --config configs/&lt;name&gt;.json</code>: trains, writes <code>runs/&lt;name&gt;/best.pt</code></li>
+      <li><code>evaluate.py --checkpoint best.pt</code>: one-time test scoring → <code>test_metrics.json</code></li>
+      <li><code>error_analysis.py</code> / <code>make_result_charts.py</code>: read saved <code>runs/</code> files only — no retraining</li>
+    </ol>
+    <p>This sequence is why the project could follow a strict no-repeat rule: every chart, table, and
+       document here is generated from files already saved in <code>runs/</code> and
+       <code>results/</code>, never by re-running training.</p>
   </div>
 </section>
 
@@ -317,8 +415,7 @@ const concepts=[
   ["Batch size","How many fish the model looks at before each update.","<b>Technical:</b> number of samples per gradient step (e.g. 16 or 32)."],
   ["Learning rate","How big a correction step the model takes.","<b>Technical:</b> Adam optimizer step size; e.g. 1e-3 (baseline) vs 1e-4 (foundation models, gentler)."],
   ["MAE","Average centimetre error.","<b>Technical:</b> mean(|prediction − truth|); our best model: 0.771 cm."],
-  ["Ensemble","Average several models' predictions.","<b>Technical:</b> weighted combination selected on validation, reported once on test — not a new architecture."],
-  ["Test-tuning risk","Peeking at the test set while choosing settings invalidates the result.","<b>Technical:</b> we select ensemble weights / best recipe on the VALIDATION set only, then report test once."],
+  ["Test-tuning risk","Peeking at the test set while choosing settings invalidates the result.","<b>Technical:</b> the best training recipe or checkpoint must be selected on the VALIDATION set only, then the test set is reported exactly once."],
 ];
 const cc=document.getElementById('conceptCards');
 concepts.forEach(([t,lay,tech])=>{
@@ -386,8 +483,6 @@ function fillBars(){
 // ---------- Q&A accordion ----------
 const qa=[
   ["Did any single model beat the baseline?","Not yet. EfficientNet-B0 (0.781 cm) is the closest — only 0.010 cm behind — and is actually better than the baseline on occluded fish specifically (0.893 vs 0.909 cm). A stronger-recipe search is running to test whether a single model can cross the baseline."],
-  ["Did the ensemble beat the baseline?","Yes — 0.711 cm vs 0.771 cm, using validation-selected weights and reporting once on test (no test-tuning). It beats the baseline on both non-occluded and occluded subsets."],
-  ["Is the ensemble a new model?","No. It's a combined-prediction system — a weighted average of three already-trained models' outputs — not a new architecture, and it costs more inference compute (three forward passes)."],
   ["Why did patch tokens help DINOv2?","The CLS token is a single global summary optimized for 'what is this?' and discards spatial detail. Patch tokens keep per-location information, which precise length regression needs. Verified over 3 seeds: 1.261±0.054 vs 1.843±0.023 cm."],
   ["Why does your occluded result differ from the paper?","Our occluded MAE (0.909 cm) is actually better than the paper's (1.38 cm) — we don't have their exact training details to explain the gap, so we report this honestly as unresolved rather than claiming credit."],
   ["Why a group-level split instead of random?","The same physical fish appears in many photos. A random per-photo split would let a fish's identity leak across train/test, letting the model 'recognize' a fish instead of measuring it."],

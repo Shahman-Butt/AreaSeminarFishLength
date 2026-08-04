@@ -7,8 +7,20 @@ import sys
 from pathlib import Path
 from docx import Document
 from docx.shared import Pt, RGBColor
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 
 BLUE = RGBColor(0x18, 0x4f, 0x95)
+CODE_BG = "F2F3F7"
+
+
+def shade_paragraph(paragraph, hex_color):
+    pPr = paragraph._p.get_or_add_pPr()
+    shd = OxmlElement("w:shd")
+    shd.set(qn("w:val"), "clear")
+    shd.set(qn("w:color"), "auto")
+    shd.set(qn("w:fill"), hex_color)
+    pPr.append(shd)
 
 
 def add_richtext(paragraph, text):
@@ -58,6 +70,22 @@ def convert(md_path, docx_path, title_override=""):
 
         if stripped == "---":
             i += 1
+            continue
+
+        if stripped.startswith("```"):
+            i += 1
+            code_lines = []
+            while i < len(lines) and not lines[i].strip().startswith("```"):
+                code_lines.append(lines[i])
+                i += 1
+            i += 1  # skip closing fence
+            for cl in code_lines:
+                p = doc.add_paragraph()
+                p.paragraph_format.space_after = Pt(0)
+                shade_paragraph(p, CODE_BG)
+                r = p.add_run(cl if cl.strip() else " ")
+                r.font.name = "Consolas"
+                r.font.size = Pt(9)
             continue
 
         if stripped.startswith("# "):
