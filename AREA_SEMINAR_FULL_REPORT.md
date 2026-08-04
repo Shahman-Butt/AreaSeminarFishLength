@@ -326,6 +326,7 @@ This makes the comparison scientifically cleaner.
 | Q2 VFM | DINOv2 ViT-S/14 fine-tuned, encoder LR 1e-5 | Not reported | Not reported | 1.636 cm | 1.919 cm | 1.778 cm | Complete |
 | Q2 VFM | DINOv2 ViT-S/14 fine-tuned, encoder LR 1e-6 | Not reported | Not reported | 2.075 cm | 2.189 cm | 2.132 cm | Complete |
 | Q2 VFM | DINOv2 ViT-S/14 frozen head then last block | Not reported | Not reported | 1.340 cm | 1.537 cm | 1.439 cm | Complete |
+| Q2 VFM | DINOv2 ViT-S/14 frozen patch-token pooling | Not reported | Not reported | 1.107 cm | 1.290 cm | 1.199 cm | Complete |
 | Q2 VFM | CLIP ViT-B/32 frozen encoder + regression head | Not reported | Not reported | 0.898 cm | 1.106 cm | 1.002 cm | Complete |
 | Q2 VFM | CLIP ViT-B/32 frozen head then last visual block | Not reported | Not reported | 0.842 cm | 1.074 cm | 0.958 cm | Complete |
 | Q2 VFM | ConvNeXt-Tiny ImageNet encoder | Not reported | Not reported | 0.814 cm | 1.014 cm | 0.914 cm | Complete |
@@ -511,7 +512,6 @@ Good next steps:
 | Stronger regression head | The encoder may be good but the head may be too simple |
 | Error analysis | Identify where models fail: species, length ranges, occlusion |
 | Crop/bbox ablation | Test how much bbox and masks contribute |
-| Ensemble or prediction averaging | May reduce regression error |
 | Multi-seed final table | More defensible seminar/report result |
 
 Recommended immediate next experiment:
