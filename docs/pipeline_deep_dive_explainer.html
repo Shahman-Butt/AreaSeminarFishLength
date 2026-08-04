@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoFish — Pipeline &amp; Model Deep Dive (Animated)</title>
+<style>
+  :root{
+    --blue:#2a78d6; --deep:#184f95; --green:#1baf7a; --violet:#4a3aa7; --gold:#eda100; --red:#c0392b;
+    --ink:#0b0b0b; --mut:#5b5b57; --bg:#f7f8fb; --card:#ffffff; --line:#e4e6ee;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);
+       background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased}
+  header{min-height:70vh;display:flex;flex-direction:column;justify-content:center;
+         align-items:center;text-align:center;padding:6vh 6vw;
+         background:linear-gradient(160deg,#eaf1fb,#f7f8fb 60%)}
+  header h1{font-size:clamp(24px,4.4vw,44px);color:var(--deep);line-height:1.14;letter-spacing:-.02em}
+  header p.sub{font-size:clamp(14px,1.8vw,18px);color:var(--mut);margin-top:16px;max-width:760px}
+  header .fish{font-size:52px;margin-bottom:8px;animation:swim 3s ease-in-out infinite}
+  @keyframes swim{0%,100%{transform:translateX(-10px) rotate(-4deg)}50%{transform:translateX(10px) rotate(4deg)}}
+
+  nav.tabs{position:sticky;top:0;z-index:50;background:rgba(247,248,251,.94);backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);display:flex;gap:6px;padding:8px 4vw;overflow-x:auto}
+  nav.tabs a{font-size:12px;font-weight:600;color:var(--mut);text-decoration:none;padding:7px 11px;
+    border-radius:999px;white-space:nowrap}
+  nav.tabs a:hover{background:#eef1f7;color:var(--deep)}
+
+  section{max-width:1020px;margin:0 auto;padding:7vh 6vw}
+  .kicker{color:var(--blue);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:12px}
+  h2{font-size:clamp(20px,3vw,30px);color:var(--deep);margin:8px 0 12px}
+  p.lead{font-size:clamp(14px,1.6vw,16.5px);color:var(--mut);max-width:760px}
+
+  .reveal{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease}
+  .reveal.in{opacity:1;transform:none}
+
+  /* ---- animated crop pipeline stage ---- */
+  .stage-canvas{display:flex;flex-wrap:wrap;gap:14px;margin-top:24px;justify-content:center;align-items:center}
+  .photo-frame{width:150px;height:150px;border-radius:10px;position:relative;overflow:hidden;
+    background:#dcdad2;border:1px solid var(--line);flex-shrink:0}
+  .photo-frame .label{position:absolute;bottom:-22px;left:0;right:0;text-align:center;font-size:11px;color:var(--mut);font-weight:600}
+  .fish-shape{position:absolute;top:38%;left:15%;width:70%;height:28%;
+    background:linear-gradient(120deg,#8a6d4a,#b89468);border-radius:50% 50% 45% 45%/60% 60% 40% 40%;
+    transform:rotate(-8deg)}
+  .other-fish{position:absolute;top:15%;left:55%;width:55%;height:22%;
+    background:linear-gradient(120deg,#6b5636,#93754e);border-radius:50% 50% 45% 45%/60% 60% 40% 40%;
+    transform:rotate(20deg);opacity:.85}
+  .stencil-bg{position:absolute;inset:0;background:#000}
+  .stencil-shape{position:absolute;top:38%;left:15%;width:70%;height:28%;background:#fff;
+    border-radius:50% 50% 45% 45%/60% 60% 40% 40%;transform:rotate(-8deg);
+    animation:stencilPulse 2.4s ease-in-out infinite}
+  @keyframes stencilPulse{0%,100%{opacity:.75}50%{opacity:1}}
+  .masked-bg{position:absolute;inset:0;background:#000}
+  .masked-fish{position:absolute;top:38%;left:15%;width:70%;height:28%;
+    background:linear-gradient(120deg,#8a6d4a,#b89468);border-radius:50% 50% 45% 45%/60% 60% 40% 40%;
+    transform:rotate(-8deg)}
+  .sq-window{position:absolute;border:2px dashed var(--gold);border-radius:6px;
+    top:30%;left:10%;width:80%;height:44%;animation:sqPulse 2s ease-in-out infinite}
+  @keyframes sqPulse{0%,100%{box-shadow:0 0 0 0 rgba(237,161,0,.0)}50%{box-shadow:0 0 0 4px rgba(237,161,0,.15)}}
+  .crop-final{width:120px;height:120px;background:#000;border-radius:10px;position:relative;
+    overflow:hidden;border:2px solid var(--gold)}
+  .crop-final .masked-fish{top:32%;left:6%;width:88%;height:34%}
+  .tensor-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;width:120px;height:120px;
+    background:#0f1522;border-radius:10px;padding:6px}
+  .tensor-grid span{background:linear-gradient(135deg,#2a78d6,#6fa8d6);border-radius:1px;animation:tpulse 2s infinite}
+  @keyframes tpulse{0%,100%{opacity:.4}50%{opacity:1}}
+  .flow-arrow{font-size:22px;color:var(--blue);font-weight:700;flex-shrink:0}
+  .step-note{font-size:11.5px;color:var(--mut);text-align:center;max-width:150px}
+
+  /* ---- code+explain cards ---- */
+  .deep-block{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:18px 20px;margin-top:16px;box-shadow:0 4px 14px rgba(20,40,80,.05)}
+  .deep-block h3{font-size:15px;color:var(--deep);margin-bottom:8px}
+  .deep-block p{font-size:12.8px;color:var(--mut);margin-top:8px;line-height:1.55}
+  .deep-block code{font-family:Consolas,"Cascadia Code",monospace;background:#f2f3f7;
+    padding:1px 5px;border-radius:4px;font-size:11.8px;color:#3a3a38}
+  .deep-block pre{background:#0f1522;color:#d6e0f5;border-radius:10px;padding:13px 15px;
+    overflow-x:auto;margin-top:6px}
+  .deep-block pre code{background:none;padding:0;color:inherit;font-size:11.8px;line-height:1.6}
+
+  /* ---- model architecture animation ---- */
+  .arch-row{display:flex;align-items:center;gap:8px;margin-top:20px;flex-wrap:wrap;justify-content:center}
+  .arch-box{background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:10px 14px;
+    text-align:center;font-size:11.5px;color:var(--ink);min-width:88px}
+  .arch-box b{display:block;font-size:12.5px;color:var(--deep);margin-bottom:2px}
+  .arch-box.cnn{animation:cnnPulse 2.4s infinite}
+  .arch-box.cnn:nth-child(odd){animation-delay:.3s}
+  @keyframes cnnPulse{0%,100%{border-color:var(--line)}50%{border-color:var(--blue);box-shadow:0 0 0 3px rgba(42,120,214,.12)}}
+  .arch-arrow{color:var(--mut);font-size:16px}
+
+  .vit-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;width:150px;height:150px;
+    background:#0f1522;border-radius:10px;padding:8px;position:relative}
+  .vit-grid span{background:linear-gradient(135deg,#4a3aa7,#8f7fe0);border-radius:2px;animation:vpulse 2.6s infinite}
+  @keyframes vpulse{0%,100%{opacity:.35}50%{opacity:1}}
+  .vit-cls{position:absolute;top:-14px;left:50%;transform:translateX(-50%);width:26px;height:26px;
+    border-radius:50%;background:radial-gradient(circle at 35% 35%,#c9bdfa,#4a3aa7);
+    border:2px solid #fff;animation:vpulse 2.6s infinite}
+  .attn-line{position:absolute;height:1px;background:linear-gradient(90deg,transparent,rgba(74,58,167,.5),transparent);
+    animation:attnFade 3s infinite}
+  @keyframes attnFade{0%,100%{opacity:0}50%{opacity:1}}
+
+  .toggle{display:inline-flex;gap:6px;background:#eef1f7;border-radius:999px;padding:5px;margin-top:8px}
+  .toggle button{border:0;background:transparent;padding:7px 14px;border-radius:999px;cursor:pointer;
+                 font-size:12.5px;font-weight:600;color:var(--mut)}
+  .toggle button.active{background:var(--violet);color:#fff}
+
+  /* ---- model gallery ---- */
+  .modeltabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+  .modeltabs button{border:1px solid var(--line);background:var(--card);padding:8px 14px;border-radius:999px;
+    cursor:pointer;font-size:12px;font-weight:600;color:var(--mut)}
+  .modeltabs button.active{background:var(--deep);color:#fff;border-color:var(--deep)}
+  .modelpanel{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:20px 22px;box-shadow:0 4px 14px rgba(20,40,80,.05)}
+  .modelpanel .badge{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:999px;
+    background:#eef3fb;color:var(--deep);margin-bottom:8px}
+  .modelpanel h3{font-size:17px;color:var(--deep)}
+  .modelpanel .grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+  .modelpanel .cell{background:#f7f8fb;border-radius:8px;padding:8px 10px}
+  .modelpanel .cell .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
+  .modelpanel .cell .val{font-size:13.5px;color:var(--ink);font-weight:600;margin-top:2px}
+  .modelpanel .mae{color:var(--deep)}
+  .modelpanel p.note{margin-top:12px;font-size:12.8px;color:var(--mut)}
+
+  /* ---- config table ---- */
+  table.cfgtable{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px}
+  table.cfgtable th,table.cfgtable td{border:1px solid var(--line);padding:7px 9px;text-align:left}
+  table.cfgtable th{background:#eef3fb;color:var(--deep);font-size:11px;text-transform:uppercase}
+  table.cfgtable td.num{text-align:right;font-variant-numeric:tabular-nums}
+  table.cfgtable tr.worse td.num.result{color:var(--red);font-weight:700}
+  table.cfgtable tr.best td.num.result{color:var(--green);font-weight:700}
+  table.cfgtable tr.close td.num.result{color:var(--gold);font-weight:700}
+
+  .callout{border-left:5px solid var(--blue);border-radius:12px;padding:16px 18px;margin-top:18px;
+    background:linear-gradient(135deg,#eef3fb,#f7f8fb);font-size:13px;color:var(--ink)}
+  .callout.gold{border-left-color:var(--gold);background:linear-gradient(135deg,#fdf6e8,#f7f8fb)}
+  .callout.red{border-left-color:var(--red);background:linear-gradient(135deg,#fdecea,#f7f8fb)}
+  .callout b{color:var(--deep)}
+  .callout.gold b{color:#a2680a}
+  .callout.red b{color:#a12e2a}
+
+  /* ---- accordion ---- */
+  .acc-item{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--card);overflow:hidden}
+  .acc-item button{width:100%;text-align:left;background:none;border:0;padding:13px 15px;font-size:13px;
+    font-weight:600;color:var(--ink);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .acc-item button .arrow{transition:transform .25s;color:var(--blue);flex-shrink:0}
+  .acc-item.open button .arrow{transform:rotate(90deg)}
+  .acc-body{max-height:0;overflow:hidden;transition:max-height .3s ease}
+  .acc-item.open .acc-body{max-height:500px}
+  .acc-body p{padding:0 15px 13px;font-size:12.5px;color:var(--mut)}
+  .acc-item.hot button{color:#a12e2a}
+  .acc-item.hot{border-color:#f3c9c6}
+
+  footer{text-align:center;padding:6vh 6vw;color:var(--mut);font-size:12px;background:#eef1f7;margin-top:6vh}
+  a{color:var(--blue)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="fish">🔬</div>
+  <h1>Pipeline &amp; Model Deep Dive</h1>
+  <p class="sub">From one raw photo to a predicted length, animated step by step — plus an honest
+     breakdown of every model, every config we tried, and the hard questions a professor is likely
+     to ask about the EfficientNet-B0 result.</p>
+</header>
+
+<nav class="tabs">
+  <a href="#crop">Crop Pipeline</a>
+  <a href="#inside">Inside the Model</a>
+  <a href="#gallery">Model Gallery</a>
+  <a href="#configs">Configs Tried</a>
+  <a href="#efficientnet">EfficientNet Q&amp;A</a>
+  <a href="#qa">More Questions</a>
+</nav>
+
+<!-- ============================================================ -->
+<section id="crop">
+  <div class="reveal">
+    <div class="kicker">Step 1 — from photo to tensor</div>
+    <h2>The crop pipeline, animated</h2>
+    <p class="lead">Every fish goes through the exact same four-step journey before any model ever
+       sees it. Watch the stencil pulse, the background go black, and the square window lock on.</p>
+  </div>
+
+  <div class="stage-canvas reveal">
+    <div>
+      <div class="photo-frame">
+        <div class="fish-shape"></div>
+        <div class="other-fish"></div>
+      </div>
+      <div class="label" style="position:static;margin-top:6px">1. Raw photo<br>(may have other fish)</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div>
+      <div class="photo-frame">
+        <div class="stencil-bg"></div>
+        <div class="stencil-shape"></div>
+      </div>
+      <div class="label" style="position:static;margin-top:6px">2. Black &amp; white<br>stencil (mask)</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div>
+      <div class="photo-frame">
+        <div class="masked-bg"></div>
+        <div class="masked-fish"></div>
+        <div class="sq-window"></div>
+      </div>
+      <div class="label" style="position:static;margin-top:6px">3. Masked photo +<br>square window found</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div>
+      <div class="crop-final">
+        <div class="masked-fish"></div>
+      </div>
+      <div class="label" style="position:static;margin-top:6px">4. Cropped &amp; resized<br>to 224×224</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div>
+      <div class="tensor-grid" id="tensorGrid1"></div>
+      <div class="label" style="position:static;margin-top:6px">5. Numbers a network<br>can read (a tensor)</div>
+    </div>
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>Step 2 in code: building the mask</h3>
+    <pre><code>def mask_from_polygons(segmentation, size):
+    mask = Image.new("L", size, 0)              # start fully black
+    for polygon in json.loads(segmentation):
+        points = list(zip(polygon[0::2], polygon[1::2]))
+        draw.polygon(points, fill=255)           # 255 = "this pixel is the fish"
+    return mask</code></pre>
+    <p>Every fish's exact outline was already recorded by hand as a polygon (a list of x,y points)
+       when the dataset was built. This function just "colours inside the lines".</p>
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>Step 3 in code: blacken everything except this one fish</h3>
+    <pre><code>masked = Image.new("RGB", img.size, (0, 0, 0))   # solid black canvas
+masked.paste(img, mask=mask)                       # copy pixels ONLY where mask==255</code></pre>
+    <p><b>This is why overlapping fish disappear.</b> Even if three fish are piled on top of each
+       other in the original photo, only the ONE fish whose polygon is white survives into the crop
+       — every other fish, and the table, and the background, all vanish to solid black.</p>
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>Step 3b in code: a SQUARE window, not a stretched one</h3>
+    <pre><code>side = max(width, height)          # longer side wins
+cx, cy = centre_of_fish
+window = square of size `side`, centred on (cx, cy)</code></pre>
+    <p>If we used a non-square rectangle and then force-resized it to 224×224 later, a long thin
+       fish would get squashed fatter than it really is — directly corrupting the length signal
+       we're trying to measure. Using the longer side for both dimensions avoids this entirely.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="inside">
+  <div class="reveal">
+    <div class="kicker">Step 2 — what happens inside the model</div>
+    <h2>Tensor in, one number out</h2>
+    <p class="lead">Every model in this project — no matter which "eye" it uses — follows this exact
+       same three-stage shape.</p>
+  </div>
+
+  <div class="arch-row reveal">
+    <div class="arch-box"><b>224×224×3</b>tensor (crop)</div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box cnn"><b>ENCODER</b>(the "eye" —<br>swapped per experiment)</div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box"><b>feature vector</b>e.g. 1280 numbers</div>
+    <div class="arch-arrow">+</div>
+    <div class="arch-box"><b>bbox hint</b>4 numbers</div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box"><b>HEAD</b>small MLP</div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box" style="border-color:var(--green);color:var(--green)"><b>length (cm)</b>one number</div>
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>Where the bounding box comes from, and why it's needed</h3>
+    <pre><code>bbox = [ bbox_x/width, bbox_y/height, bbox_w/width, bbox_h/height ]
+# these are coordinates in the ORIGINAL, un-cropped photo — NOT the crop</code></pre>
+    <p>Every crop gets resized to the exact same 224×224 square, so a tiny sardine and a huge cod
+       would look the SAME SIZE inside the crop alone. These 4 numbers (computed from the
+       <em>original</em> photo, before cropping) are how the model recovers the fish's true scale.</p>
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>How configs control every part of this diagram</h3>
+    <p>One JSON file per experiment decides every knob in the diagram above. Example
+       (<code>configs/efficientnet_b0.json</code>):</p>
+    <pre><code>{
+  "model": "efficientnet",          // which ENCODER box to build
+  "bbox_input": true,                // whether the "+bbox hint" arrow exists at all
+  "pretrained": true,                // encoder starts from ImageNet weights, not random
+  "freeze_encoder": false,           // encoder box is trainable (not locked)
+  "head": [512, 128, 1],             // HEAD box shape: 2 hidden layers, 1 final output
+  "learning_rate": 0.0001,
+  "batch_size": 16,
+  "epochs": 100,
+  "seed": 42
+}</code></pre>
+    <p><code>build_model(config)</code> (in <code>models.py</code>) reads the <code>"model"</code>
+       field and constructs the matching encoder class; every other field configures HOW that
+       encoder trains (learning rate, epochs, frozen or not, head shape). Changing ONE model to a
+       different encoder is as simple as changing that one string and re-running — nothing else in
+       the pipeline needs to change.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="gallery">
+  <div class="reveal">
+    <div class="kicker">Step 3 — five different "eyes"</div>
+    <h2>Model gallery: how each encoder reads the image differently</h2>
+    <p class="lead">Two structurally different families were tested: CNNs (scan with small sliding
+       filters) and Transformers (chop into patches, let every patch "see" every other patch).</p>
+  </div>
+
+  <div class="reveal" style="text-align:center;margin-top:14px">
+    <div class="toggle">
+      <button id="btnCnn" class="active" onclick="setArch('cnn')">CNN (MobileNetV2/EfficientNet/ConvNeXt)</button>
+      <button id="btnVit" onclick="setArch('vit')">Vision Transformer (DINOv2/CLIP)</button>
+    </div>
+  </div>
+
+  <div id="cnnView" class="reveal" style="margin-top:16px">
+    <div class="arch-row">
+      <div class="arch-box cnn"><b>expand</b>1×1 conv</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box cnn"><b>depthwise</b>3×3 conv (cheap)</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box cnn"><b>project</b>1×1 conv</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="color:var(--mut)">repeat block<br>many times...</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="border-color:var(--green);color:var(--green)"><b>pooled vector</b>e.g. 1280 numbers</div>
+    </div>
+    <p style="text-align:center;font-size:12.5px;color:var(--mut);margin-top:10px">Each block only
+       "sees" a small local neighbourhood of pixels; stacking many blocks slowly builds up a bigger
+       picture, while shrinking resolution and growing feature depth.</p>
+  </div>
+
+  <div id="vitView" class="reveal" style="display:none;margin-top:16px;text-align:center">
+    <div style="position:relative;display:inline-block;padding-top:20px">
+      <div class="vit-cls"></div>
+      <div class="vit-grid" id="vitGrid"></div>
+    </div>
+    <p style="font-size:12.5px;color:var(--mut);margin-top:10px;max-width:500px;margin-left:auto;margin-right:auto">
+       The image is chopped into a grid of patches (violet squares) plus one special summary
+       [CLS] token (the circle on top). Every patch can directly "attend to" every other patch in
+       one layer — unlike a CNN, which only sees neighbours until many layers deep.</p>
+  </div>
+
+  <div class="modeltabs reveal" id="modelTabs"></div>
+  <div class="modelpanel reveal" id="modelPanel"></div>
+</section>
+
+<!-- ============================================================ -->
+<section id="configs">
+  <div class="reveal">
+    <div class="kicker">Every recipe we actually tried</div>
+    <h2>Configs, results, and the ones we skipped</h2>
+    <p class="lead">Full transparency: every training recipe run for MobileNetV2 (baseline) and
+       EfficientNet-B0, what happened, and what we deliberately did not try.</p>
+  </div>
+
+  <table class="cfgtable reveal">
+    <tr><th>Config</th><th>Seed</th><th>Epochs</th><th>LR</th><th>Schedule</th><th>Weight decay</th><th>Result (MAE)</th></tr>
+    <tr class="best"><td>MobileNetV2 baseline (paper recipe)</td><td class="num">42</td><td class="num">200</td><td class="num">1e-3</td><td>none</td><td class="num">0</td><td class="num result">0.771 cm</td></tr>
+    <tr class="close"><td>EfficientNet-B0 (basic recipe, same as other encoders)</td><td class="num">42</td><td class="num">100</td><td class="num">1e-4</td><td>none</td><td class="num">0</td><td class="num result">0.781 cm</td></tr>
+    <tr class="worse"><td>EfficientNet-B0 "strong A" (higher LR + cosine + more epochs)</td><td class="num">42</td><td class="num">200</td><td class="num">1e-3</td><td>cosine</td><td class="num">1e-4</td><td class="num result">0.934 cm ⚠️</td></tr>
+    <tr><td>EfficientNet-B0 "strong B" (gentler LR)</td><td class="num">42</td><td class="num">200</td><td class="num">5e-4</td><td>cosine</td><td class="num">5e-5</td><td class="num result">pending / unconfirmed</td></tr>
+    <tr><td>EfficientNet-B0 "strong C" (smaller batch)</td><td class="num">42</td><td class="num">150</td><td class="num">1e-3</td><td>cosine</td><td class="num">1e-4</td><td class="num result">pending / unconfirmed</td></tr>
+    <tr><td>ConvNeXt-Tiny "strong A/B"</td><td class="num">42</td><td class="num">200</td><td class="num">5e-4 / 1e-3</td><td>cosine</td><td class="num">1e-4</td><td class="num result">pending / unconfirmed</td></tr>
+  </table>
+
+  <div class="callout red reveal">
+    <b>The surprising result:</b> throwing MORE training at EfficientNet-B0 (higher learning rate,
+    a decay schedule, double the epochs) made it <b>worse</b>, not better — 0.934 cm vs. the basic
+    recipe's 0.781 cm. This is a real, useful finding: it suggests EfficientNet-B0 was already
+    close to its ceiling on this small dataset (~11,000 training crops), and a more aggressive
+    recipe overshoots into overfitting or instability rather than finding a better optimum.
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>What we deliberately did NOT try, and why</h3>
+    <ul style="margin-left:18px;font-size:12.8px;color:var(--mut);line-height:1.7">
+      <li><b>Multiple seeds of the 0.781 basic recipe</b> — we prioritized testing whether a
+        <em>different recipe</em> could beat the baseline over first confirming whether the 0.781
+        result itself was reliable. This is a gap, not an oversight we're hiding.</li>
+      <li><b>SGD or other optimizers</b> — Adam was kept fixed across every single encoder in the
+        whole project, specifically so the encoder comparison stayed controlled and fair.</li>
+      <li><b>Mixup/CutMix, label smoothing, warmup schedules</b> — each adds another variable; with
+        only single-seed runs already, adding more knobs would make it harder, not easier, to know
+        what caused any change.</li>
+      <li><b>EfficientNet-B1/B2 (larger variants)</b> — only B0 was in scope for this round; larger
+        variants are listed as future work.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="efficientnet">
+  <div class="reveal">
+    <div class="kicker">The question everyone will ask</div>
+    <h2>EfficientNet-B0: how close, how reliable?</h2>
+  </div>
+
+  <div class="arch-row reveal">
+    <div class="arch-box" style="border-color:var(--mut)"><b>0.771 cm</b>MobileNetV2<br>(baseline)</div>
+    <div class="arch-arrow">vs</div>
+    <div class="arch-box" style="border-color:var(--gold);color:#a2680a"><b>0.781 cm</b>EfficientNet-B0<br>(basic recipe)</div>
+  </div>
+  <p style="text-align:center;font-size:13px;color:var(--mut);margin-top:8px">Gap: <b>0.010 cm</b>
+     — about a tenth of a millimetre, on fish averaging ~30 cm.</p>
+
+  <div class="callout gold reveal">
+    <b>Is 0.010 cm meaningful, or noise?</b> We genuinely don't know yet. Both numbers come from a
+    <b>single training run each</b> (seed 42 only). Neural network training has run-to-run
+    randomness — the same recipe run again with a different seed could easily land 0.01–0.03 cm
+    higher or lower purely by chance. A gap this small needs <b>multi-seed repeats</b> (like the
+    DINOv2 patch-vs-CLS study got, with seeds 42/1/2) before anyone can honestly say EfficientNet-B0
+    "matches" or "loses to" the baseline. Right now it is accurately described only as
+    <b>"the closest single-model result found so far, unconfirmed."</b>
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>Why might it be close at all?</h3>
+    <p>💡 Hypothesis, not proven: EfficientNet-B0 and MobileNetV2 are architectural cousins — both
+       are compact, fully-supervised, ImageNet-pretrained CNNs designed for efficiency. Both were
+       fully fine-tuned end-to-end on this exact task. It's plausible that this whole family of
+       small supervised CNNs is simply well matched to a masked, cropped, single-object regression
+       task like this one — but that's an interpretation, not a demonstrated fact.</p>
+  </div>
+
+  <div class="deep-block reveal">
+    <h3>Why did the "stronger recipe" make it worse?</h3>
+    <p>💡 Also a hypothesis: with only ~11,000 training crops, a 10× larger learning rate (1e-3
+       instead of 1e-4) combined with double the epochs may push the model past its best point and
+       into overfitting — memorizing quirks of the training crops rather than learning generalizable
+       size cues. The gentler "strong B" recipe (5e-4) may tell us more once it finishes.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="qa">
+  <div class="reveal">
+    <div class="kicker">Likely professor questions</div>
+    <h2>More hard questions, answered honestly</h2>
+  </div>
+  <div id="accordion" class="reveal"></div>
+</section>
+
+<footer>
+  AutoFish Area Seminar · Abu Bakar · Laksh Jiwani · Shahman Butt · Supervisor Bohan Zhuang, M.Sc. ·
+  Professor Stefan Oehmcke · University of Rostock (VACOT)<br>
+  <a href="https://github.com/Shahman-Butt/AreaSeminarFishLength">github.com/Shahman-Butt/AreaSeminarFishLength</a>
+  · Generative AI assisted with code scaffolding and text drafting; all experiments and conclusions verified by the authors.
+</footer>
+
+<script>
+// ---------- reveal on scroll, with a hard fallback so nothing stays stuck invisible ----------
+const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');}}),
+  {threshold:.1, rootMargin:"0px 0px -5% 0px"});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+setTimeout(()=>{document.querySelectorAll('.reveal').forEach(el=>el.classList.add('in'));}, 1200);
+
+// ---------- animated tensor grid ----------
+const tg = document.getElementById('tensorGrid1');
+for (let i=0;i<64;i++){const s=document.createElement('span');s.style.animationDelay=(i*30)+'ms';tg.appendChild(s);}
+
+// ---------- vit patch grid ----------
+const vg = document.getElementById('vitGrid');
+for (let i=0;i<36;i++){const s=document.createElement('span');s.style.animationDelay=(i*40)+'ms';vg.appendChild(s);}
+
+function setArch(which){
+  const cnn = which === 'cnn';
+  document.getElementById('cnnView').style.display = cnn ? 'block' : 'none';
+  document.getElementById('vitView').style.display = cnn ? 'none' : 'block';
+  document.getElementById('btnCnn').classList.toggle('active', cnn);
+  document.getElementById('btnVit').classList.toggle('active', !cnn);
+}
+
+// ---------- model gallery ----------
+const models = {
+  "MobileNetV2 (baseline)": {
+    badge: "CNN · Supervised · Full fine-tune", params: "~3.4M", pretrain: "ImageNet (labels)",
+    recipe: "Adam 1e-3, 200 epochs, batch 32", mae: "0.771 cm",
+    note: "The paper's original encoder. Still the best single model in this project."
+  },
+  "EfficientNet-B0": {
+    badge: "CNN · Supervised · Full fine-tune", params: "~5.3M", pretrain: "ImageNet (labels)",
+    recipe: "Adam 1e-4, 100 epochs, batch 16", mae: "0.781 cm (single run)",
+    note: "Only 0.010 cm behind the baseline — but unconfirmed (single seed). A stronger recipe made it worse (0.934 cm), not better."
+  },
+  "ConvNeXt-Tiny": {
+    badge: "CNN · Supervised · Full fine-tune", params: "~28M", pretrain: "ImageNet (labels)",
+    recipe: "Adam 1e-4, 100 epochs, batch 16", mae: "0.914 cm",
+    note: "A modern (2022) CNN design. Third place among single models."
+  },
+  "CLIP ViT-B/32": {
+    badge: "ViT · Vision-Language · Frozen/Partial", params: "~88M", pretrain: "400M image-text pairs",
+    recipe: "Adam 1e-4, 100 epochs (encoder frozen or last-block)", mae: "0.958–1.002 cm",
+    note: "Transfers much better than DINOv2 — its language-shaped features keep more size/shape cues."
+  },
+  "DINOv2 ViT-S/14": {
+    badge: "ViT · Self-supervised · Frozen/Partial", params: "~21M", pretrain: "self-supervised, no labels",
+    recipe: "Adam 1e-4, 100 epochs; patch-token vs CLS-token tested", mae: "1.199–2.132 cm",
+    note: "CLS token alone transfers poorly; averaging PATCH tokens instead gave the biggest reliable improvement in this project (3-seed confirmed)."
+  },
+};
+const mt = document.getElementById('modelTabs');
+const mp = document.getElementById('modelPanel');
+function showModel(name){
+  const m = models[name];
+  [...mt.children].forEach(b => b.classList.toggle('active', b.textContent === name));
+  mp.innerHTML = `<span class="badge">${m.badge}</span><h3>${name}</h3>
+    <div class="grid4">
+      <div class="cell"><div class="lbl">Parameters</div><div class="val">${m.params}</div></div>
+      <div class="cell"><div class="lbl">Pretrained on</div><div class="val">${m.pretrain}</div></div>
+      <div class="cell"><div class="lbl">Recipe used</div><div class="val">${m.recipe}</div></div>
+      <div class="cell"><div class="lbl">Full-test MAE</div><div class="val mae">${m.mae}</div></div>
+    </div>
+    <p class="note">${m.note}</p>`;
+}
+Object.keys(models).forEach(name => {
+  const b = document.createElement('button'); b.textContent = name; b.onclick = () => showModel(name);
+  mt.appendChild(b);
+});
+showModel("MobileNetV2 (baseline)");
+
+// ---------- Q&A accordion ----------
+const qa = [
+  ["How many seeds/epochs did the 0.781 cm EfficientNet-B0 result use?", "Just 1 seed (42), 100 epochs, the same basic recipe as every other encoder-swap experiment. It was never repeated with different seeds.", false],
+  ["Is the EfficientNet-B0 result statistically reliable?", "No, not yet. A 0.010 cm gap from a single run each is well within the range of ordinary seed-to-seed noise. It needs multi-seed repeats (like the DINOv2 patch-vs-CLS study got) before it can be called a confirmed result.", true],
+  ["Why did a stronger training recipe make EfficientNet-B0 WORSE (0.934 cm)?", "A hypothesis, not a proven fact: with only ~11,000 training crops, a 10x higher learning rate plus double the epochs likely pushed the model into overfitting rather than finding a better optimum. The gentler 'strong B' recipe may behave differently.", true],
+  ["Why wasn't the basic 0.781 recipe repeated with more seeds before trying stronger recipes?", "A genuine gap in the experiment plan, not something hidden: GPU time was prioritized on testing whether a different recipe could beat the baseline outright, over first confirming the closeness of the existing result. Both are needed; only one was done in this round.", true],
+  ["Are you cherry-picking the recipe that happens to look best?", "No — every recipe attempted for EfficientNet-B0 is reported above, including the one that made things worse (0.934 cm). The table shows failures as well as the closest result, on purpose.", false],
+  ["Why is CLIP's image encoder used but not its text encoder?", "CLIP was pretrained to match images to captions, but our task never needs text — we only call encode_image(), the image half of the model. The text tower exists in the checkpoint but is simply never invoked in this project's code.", false],
+  ["What exactly changes in the code when you swap MobileNetV2 for EfficientNet-B0?", "One line in the config file: \"model\": \"mobilenet_v2\" becomes \"model\": \"efficientnet\". build_model() in models.py reads that field and constructs a different encoder class; the data loading, bbox concatenation, head architecture, training loop, and evaluation code are all 100% identical.", false],
+  ["Why does the bounding box use the ORIGINAL photo's coordinates, not the crop's?", "Every crop is resized to the same 224x224 square, which destroys the fish's real-world scale. The bbox, computed from the un-cropped original photo and normalized to 0..1, is how the model recovers 'how big was this fish really, before resizing?'", false],
+];
+const acc = document.getElementById('accordion');
+qa.forEach(([q,a,hot]) => {
+  const item = document.createElement('div'); item.className = 'acc-item' + (hot ? ' hot' : '');
+  item.innerHTML = `<button>${q}<span class="arrow">▶</span></button><div class="acc-body"><p>${a}</p></div>`;
+  item.querySelector('button').onclick = () => item.classList.toggle('open');
+  acc.appendChild(item);
+});
+</script>
+</body>
+</html>
