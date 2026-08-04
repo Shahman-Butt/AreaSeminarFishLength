@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoFish — Defense Visual Explainer</title>
+<style>
+  :root{
+    --blue:#2a78d6; --deep:#184f95; --green:#1baf7a; --violet:#4a3aa7; --gold:#eda100;
+    --ink:#0b0b0b; --mut:#5b5b57; --bg:#f7f8fb; --card:#ffffff; --line:#e4e6ee;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);
+       background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased}
+  header{min-height:82vh;display:flex;flex-direction:column;justify-content:center;
+         align-items:center;text-align:center;padding:6vh 6vw;
+         background:linear-gradient(160deg,#eaf1fb,#f7f8fb 60%)}
+  header h1{font-size:clamp(26px,4.6vw,48px);color:var(--deep);line-height:1.12;letter-spacing:-.02em}
+  header p.sub{font-size:clamp(14px,1.9vw,19px);color:var(--mut);margin-top:16px;max-width:720px}
+  header .fish{font-size:58px;margin-bottom:8px;animation:swim 3s ease-in-out infinite}
+  @keyframes swim{0%,100%{transform:translateX(-10px) rotate(-4deg)}50%{transform:translateX(10px) rotate(4deg)}}
+  .scroll-hint{margin-top:32px;color:var(--mut);font-size:13px;animation:bob 1.6s infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+
+  nav.tabs{position:sticky;top:0;z-index:50;background:rgba(247,248,251,.92);backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);display:flex;gap:6px;padding:8px 4vw;overflow-x:auto}
+  nav.tabs a{font-size:12.5px;font-weight:600;color:var(--mut);text-decoration:none;padding:7px 12px;
+    border-radius:999px;white-space:nowrap}
+  nav.tabs a:hover{background:#eef1f7;color:var(--deep)}
+
+  section{max-width:980px;margin:0 auto;padding:8vh 6vw}
+  .kicker{color:var(--blue);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:12.5px}
+  h2{font-size:clamp(21px,3.2vw,32px);color:var(--deep);margin:8px 0 14px}
+  p.lead{font-size:clamp(14.5px,1.7vw,17px);color:var(--mut);max-width:720px}
+
+  .reveal{opacity:0;transform:translateY(26px);transition:opacity .6s ease,transform .6s ease}
+  .reveal.in{opacity:1;transform:none}
+
+  /* pipeline */
+  .pipe{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-top:26px;justify-content:center}
+  .stage{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 15px;
+         text-align:center;min-width:112px;box-shadow:0 4px 14px rgba(20,40,80,.05)}
+  .stage .ic{font-size:24px}
+  .stage .lbl{font-size:12px;color:var(--mut);margin-top:4px}
+  .stage b{color:var(--ink)}
+  .arrow{color:var(--blue);font-size:20px;font-weight:700}
+  .pipe .stage{opacity:0;transform:scale(.85)}
+  .pipe.in .stage{animation:pop .5s forwards}
+  .pipe.in .stage:nth-child(1){animation-delay:.05s}
+  .pipe.in .stage:nth-child(3){animation-delay:.2s}
+  .pipe.in .stage:nth-child(5){animation-delay:.35s}
+  .pipe.in .stage:nth-child(7){animation-delay:.5s}
+  .pipe.in .stage:nth-child(9){animation-delay:.65s}
+  .pipe.in .stage:nth-child(11){animation-delay:.8s}
+  @keyframes pop{to{opacity:1;transform:scale(1)}}
+
+  /* concept cards */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:24px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+        box-shadow:0 4px 14px rgba(20,40,80,.05);transition:transform .25s}
+  .card:hover{transform:translateY(-3px)}
+  .card h3{font-size:15px;color:var(--deep);margin-bottom:6px}
+  .card p{font-size:12.8px;color:var(--mut);margin-bottom:6px}
+  .card .tech{font-size:11.8px;color:#3a3a38;background:#f2f3f7;border-radius:8px;padding:6px 8px;margin-top:6px}
+  .card .tech b{color:var(--deep)}
+
+  /* model tabs */
+  .modeltabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+  .modeltabs button{border:1px solid var(--line);background:var(--card);padding:9px 16px;border-radius:999px;
+    cursor:pointer;font-size:13px;font-weight:600;color:var(--mut)}
+  .modeltabs button.active{background:var(--deep);color:#fff;border-color:var(--deep)}
+  .modelpanel{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:22px 24px;box-shadow:0 4px 14px rgba(20,40,80,.05)}
+  .modelpanel h3{font-size:18px;color:var(--deep);margin-bottom:4px}
+  .modelpanel .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;
+    background:#eef3fb;color:var(--deep);margin-bottom:10px}
+  .modelpanel .row{display:flex;gap:20px;flex-wrap:wrap;margin-top:10px}
+  .modelpanel .col{flex:1;min-width:220px}
+  .modelpanel .col h4{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin-bottom:5px}
+  .modelpanel .col p{font-size:13.5px;color:var(--ink)}
+  .modelpanel .mae{font-size:26px;font-weight:700;color:var(--deep)}
+
+  /* bars */
+  .bars{margin-top:24px}
+  .bar-row{display:grid;grid-template-columns:190px 1fr 74px;align-items:center;gap:12px;margin:8px 0;font-size:13.5px}
+  .bar-track{background:#edeff5;border-radius:8px;height:24px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:8px;width:0;transition:width 1s cubic-bezier(.2,.7,.3,1)}
+  .bar-row .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .tag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;margin-left:6px}
+  .tag.best{background:#e5f3ec;color:#0a7a4a}
+  .tag.close{background:#fdf2df;color:#a2680a}
+  .tag.new{background:#efe9fb;color:var(--violet)}
+
+  /* ensemble demo */
+  .ensemble-demo{display:flex;flex-wrap:wrap;gap:14px;margin-top:22px;align-items:center;justify-content:center}
+  .edot{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;text-align:center;
+    box-shadow:0 4px 14px rgba(20,40,80,.05);min-width:130px}
+  .edot .name{font-size:12px;color:var(--mut);font-weight:600}
+  .edot .val{font-size:22px;font-weight:700;color:var(--deep);margin-top:4px}
+  .eplus{font-size:22px;color:var(--mut)}
+  .eeq{font-size:26px;color:var(--violet);font-weight:700}
+  .eresult{background:linear-gradient(135deg,#efe9fb,#f7f8fb);border:2px solid var(--violet);border-radius:14px;
+    padding:18px 26px;text-align:center}
+  .eresult .name{font-size:13px;color:var(--violet);font-weight:700}
+  .eresult .val{font-size:30px;font-weight:800;color:var(--violet);margin-top:4px}
+
+  /* timeline */
+  .timeline{position:relative;margin-top:30px;padding-left:26px}
+  .timeline::before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--line)}
+  .tl-item{position:relative;margin-bottom:22px;padding-left:14px}
+  .tl-item::before{content:"";position:absolute;left:-23px;top:4px;width:14px;height:14px;border-radius:50%;
+    background:var(--blue);border:3px solid #fff;box-shadow:0 0 0 2px var(--blue)}
+  .tl-item.milestone::before{background:var(--green);box-shadow:0 0 0 2px var(--green)}
+  .tl-item h4{font-size:14.5px;color:var(--deep)}
+  .tl-item p{font-size:12.8px;color:var(--mut);margin-top:2px}
+
+  /* accordion */
+  .acc-item{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--card);overflow:hidden}
+  .acc-item button{width:100%;text-align:left;background:none;border:0;padding:14px 16px;font-size:13.5px;
+    font-weight:600;color:var(--ink);cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+  .acc-item button .arrow{transition:transform .25s;color:var(--blue)}
+  .acc-item.open button .arrow{transform:rotate(90deg)}
+  .acc-body{max-height:0;overflow:hidden;transition:max-height .3s ease}
+  .acc-item.open .acc-body{max-height:400px}
+  .acc-body p{padding:0 16px 14px;font-size:13px;color:var(--mut)}
+
+  .callout{border-left:5px solid var(--blue);border-radius:12px;padding:18px 20px;margin-top:24px;
+    background:linear-gradient(135deg,#eef3fb,#f7f8fb)}
+  .callout.gold{border-left-color:var(--gold);background:linear-gradient(135deg,#fdf6e8,#f7f8fb)}
+  .callout b{color:var(--deep)}
+  .callout.gold b{color:#a2680a}
+
+  footer{text-align:center;padding:6vh 6vw;color:var(--mut);font-size:12.5px;background:#eef1f7;margin-top:6vh}
+  a{color:var(--blue)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="fish">🐟</div>
+  <h1>AutoFish: Measuring Fish with AI</h1>
+  <p class="sub">A visual defense guide — dataset, models, training, results, and the honest story of
+     what beats the baseline (and what doesn't, yet).</p>
+  <div class="scroll-hint">▼ scroll or use the tabs below</div>
+</header>
+
+<nav class="tabs">
+  <a href="#pipeline">Pipeline</a>
+  <a href="#concepts">Concepts</a>
+  <a href="#models">Models</a>
+  <a href="#results">Results</a>
+  <a href="#ensemble">Ensemble</a>
+  <a href="#timeline">Timeline</a>
+  <a href="#qa">Q&amp;A</a>
+</nav>
+
+<section id="pipeline">
+  <div class="reveal">
+    <div class="kicker">How it works</div>
+    <h2>Dataset → Preprocessing → Encoder → Prediction</h2>
+    <p class="lead">Every model shares this exact pipeline. Only the encoder ("the eye") changes
+       between experiments — everything else stays identical, so any difference in accuracy is
+       attributable to the encoder.</p>
+  </div>
+  <div class="pipe reveal">
+    <div class="stage"><div class="ic">🐟</div><div class="lbl"><b>Raw photo</b><br>+ annotation</div></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div class="ic">✂️</div><div class="lbl"><b>Crop</b><br>square, masked</div></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div class="ic">🔲</div><div class="lbl">Resize<br><b>224×224</b></div></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div class="ic">👁️</div><div class="lbl"><b>Encoder</b><br>(swapped)</div></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div class="ic">➕</div><div class="lbl">+ bbox<br>(4 values)</div></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div class="ic">🧮</div><div class="lbl">Head<br>MLP</div></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div class="ic">📏</div><div class="lbl"><b>Length</b><br>(cm)</div></div>
+  </div>
+  <div class="callout reveal">
+    <b>Dataset:</b> 1,500 images · 454 fish · 18,157 annotations · 25 groups.
+    <b>Split:</b> 15 train / 5 val / 5 test groups (never by photo — prevents fish-identity leakage).
+    <b>Test:</b> 3,759 fish (1,879 non-occluded + 1,880 occluded).
+  </div>
+</section>
+
+<section id="concepts">
+  <div class="reveal">
+    <div class="kicker">Core ideas</div>
+    <h2>Concept cards</h2>
+    <p class="lead">Hover for the layman line; the technical line is always visible underneath.</p>
+  </div>
+  <div class="cards reveal" id="conceptCards"></div>
+</section>
+
+<section id="models">
+  <div class="reveal">
+    <div class="kicker">The encoders we tested</div>
+    <h2>Model tabs</h2>
+    <p class="lead">Click a model to see how it works and what it scored.</p>
+  </div>
+  <div class="modeltabs reveal" id="modelTabs"></div>
+  <div class="modelpanel reveal" id="modelPanel"></div>
+</section>
+
+<section id="results">
+  <div class="reveal">
+    <div class="kicker">Length regression</div>
+    <h2>Full-test MAE (cm) — lower is better</h2>
+    <p class="lead">MobileNetV2 is still the best single model. <b>EfficientNet-B0 is only 0.010 cm
+       behind</b> — the strongest single-model challenger found so far.</p>
+  </div>
+  <div class="bars reveal" id="lenBars"></div>
+  <div class="callout gold reveal">
+    <b>Knocking on the door:</b> EfficientNet-B0 = 0.781 cm vs baseline 0.771 cm, using a weaker
+    training recipe than the baseline. A validation-selected stronger-recipe search (cosine LR
+    schedule + weight decay + tuned LR + more epochs) is running to test whether a single model can
+    cross the baseline. This is <b>ongoing / future work</b>, not yet achieved.
+  </div>
+</section>
+
+<section id="ensemble">
+  <div class="reveal">
+    <div class="kicker">Combining predictions</div>
+    <h2>What is an ensemble?</h2>
+    <p class="lead">Instead of trusting one model, average several models' guesses. Example with
+       real-style numbers:</p>
+  </div>
+  <div class="ensemble-demo reveal">
+    <div class="edot"><div class="name">MobileNetV2</div><div class="val">30.2 cm</div></div>
+    <div class="eplus">+</div>
+    <div class="edot"><div class="name">ConvNeXt-Tiny</div><div class="val">30.8 cm</div></div>
+    <div class="eplus">+</div>
+    <div class="edot"><div class="name">CLIP (frozen)</div><div class="val">30.5 cm</div></div>
+    <div class="eeq">=</div>
+    <div class="eresult"><div class="name">ENSEMBLE AVERAGE</div><div class="val">≈ 30.5 cm</div></div>
+  </div>
+  <div class="callout reveal">
+    <b>Our real, validation-selected ensemble</b> (MobileNetV2 ×3 + ConvNeXt ×1 + CLIP-frozen ×1,
+    weights chosen on validation, reported once on test): <b>0.711 cm</b> full-test MAE vs baseline
+    <b>0.771 cm</b> — a 7.8% improvement, beating the baseline on both non-occluded and occluded
+    subsets. <b>Important:</b> this is not a new architecture — it is a combined-prediction system
+    using three already-trained models, at the cost of more inference compute.
+  </div>
+</section>
+
+<section id="timeline">
+  <div class="reveal">
+    <div class="kicker">Project history</div>
+    <h2>What we did, in order</h2>
+  </div>
+  <div class="timeline reveal">
+    <div class="tl-item milestone"><h4>1. Baseline reproduction</h4>
+      <p>Rebuilt AutoFish's MobileNetV2 regressor; matched the paper to within 0.013 cm (non-occluded).</p></div>
+    <div class="tl-item"><h4>2. Vision foundation model tests</h4>
+      <p>Compared CLIP and DINOv2 (frozen, last-block, full fine-tune) under identical data/split/metrics.</p></div>
+    <div class="tl-item milestone"><h4>3. Patch-token DINOv2</h4>
+      <p>Controlled 3-seed study: patch-pooled DINOv2 (1.261±0.054) reliably beats CLS-token DINOv2 (1.843±0.023).</p></div>
+    <div class="tl-item"><h4>4. EfficientNet-B0</h4>
+      <p>New supervised-CNN challenger: 0.781 cm, only 0.010 cm behind the baseline.</p></div>
+    <div class="tl-item"><h4>5. Ensemble</h4>
+      <p>Validation-selected weighted ensemble beats the baseline: 0.711 vs 0.771 cm.</p></div>
+    <div class="tl-item"><h4>6. Species classification</h4>
+      <p>Same encoders, new task: all models 95–99.6% accuracy.</p></div>
+    <div class="tl-item milestone"><h4 style="color:#a2680a">Next: stronger-recipe search (ongoing)</h4>
+      <p>Cosine LR + weight decay + tuned LR for EfficientNet-B0/ConvNeXt — testing whether a single
+        model can beat the baseline outright.</p></div>
+  </div>
+</section>
+
+<section id="qa">
+  <div class="reveal">
+    <div class="kicker">Be ready for these</div>
+    <h2>Professor Q&amp;A</h2>
+    <p class="lead">Click a question to reveal the answer.</p>
+  </div>
+  <div id="accordion" class="reveal"></div>
+</section>
+
+<footer>
+  AutoFish Area Seminar · Abu Bakar · Laksh Jiwani · Shahman Butt · Supervisor Bohan Zhuang, M.Sc. ·
+  Professor Stefan Oehmcke · University of Rostock (VACOT)<br>
+  <a href="https://github.com/Shahman-Butt/AreaSeminarFishLength">github.com/Shahman-Butt/AreaSeminarFishLength</a>
+  · Generative AI assisted with code scaffolding and text drafting; all experiments and conclusions verified by the authors.
+</footer>
+
+<script>
+// ---------- reveal on scroll (with hard fallback so content is never stuck invisible) ----------
+const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');
+  if(e.target.id==='lenBars')fillBars();}}),{threshold:.1, rootMargin:"0px 0px -5% 0px"});
+document.querySelectorAll('.reveal,.pipe').forEach(el=>io.observe(el));
+// Fallback: if IntersectionObserver hasn't revealed something within 1.2s (e.g. very tall
+// viewport, print/export context, or a timing edge case), force it visible so nothing is
+// ever permanently stuck at opacity:0.
+setTimeout(()=>{
+  document.querySelectorAll('.reveal,.pipe').forEach(el=>el.classList.add('in'));
+  fillBars();
+}, 1200);
+
+// ---------- concept cards ----------
+const concepts=[
+  ["Regression","Predict a number (length in cm), not a category.","<b>Technical:</b> continuous target, L1 loss, evaluated via MAE/RMSE."],
+  ["Classification","Pick a category (which species).","<b>Technical:</b> discrete target, cross-entropy loss, evaluated via accuracy/macro-F1."],
+  ["Encoder / Backbone","The 'eye' that turns a photo into a list of numbers.","<b>Technical:</b> feature extractor (CNN or ViT) producing an embedding vector."],
+  ["Head","A small network turning features into the final answer.","<b>Technical:</b> MLP with Linear+BatchNorm+ReLU blocks, final Linear output."],
+  ["Pretrained model","A model that already learned from millions of other images.","<b>Technical:</b> weights initialized from large-scale pretraining (ImageNet, web image-text, self-supervised)."],
+  ["Frozen encoder","The eye is locked; only the head learns.","<b>Technical:</b> requires_grad=False on encoder params; only head params updated."],
+  ["Full fine-tuning","The whole eye is retrained for this task.","<b>Technical:</b> all encoder + head parameters trainable, gradient flows through the backbone."],
+  ["Last-block fine-tuning","Only the encoder's last layer adapts.","<b>Technical:</b> partial fine-tuning — unfreeze final transformer block/norm/proj only."],
+  ["CNN","Scans the image with small sliding filters.","<b>Technical:</b> convolutional network — local receptive fields, weight sharing, translation equivariance."],
+  ["Vision Transformer (ViT)","Splits the image into patches that all 'talk' to each other.","<b>Technical:</b> patch embedding + self-attention, global receptive field per layer."],
+  ["CLS token","One summary vector for the whole image.","<b>Technical:</b> learned aggregation token; good for classification, discards spatial detail."],
+  ["Patch tokens","One vector per small image region.","<b>Technical:</b> spatial tokens; needed for dense/geometric tasks like segmentation, depth, and — we found — length regression."],
+  ["Bounding box (bbox)","The rectangle showing where the fish is / how big it was.","<b>Technical:</b> 4 normalized coordinates concatenated to the feature vector, restoring scale lost by resizing."],
+  ["Epoch","One full pass through all training fish.","<b>Technical:</b> one iteration over the entire training DataLoader."],
+  ["Batch size","How many fish the model looks at before each update.","<b>Technical:</b> number of samples per gradient step (e.g. 16 or 32)."],
+  ["Learning rate","How big a correction step the model takes.","<b>Technical:</b> Adam optimizer step size; e.g. 1e-3 (baseline) vs 1e-4 (foundation models, gentler)."],
+  ["MAE","Average centimetre error.","<b>Technical:</b> mean(|prediction − truth|); our best model: 0.771 cm."],
+  ["Ensemble","Average several models' predictions.","<b>Technical:</b> weighted combination selected on validation, reported once on test — not a new architecture."],
+  ["Test-tuning risk","Peeking at the test set while choosing settings invalidates the result.","<b>Technical:</b> we select ensemble weights / best recipe on the VALIDATION set only, then report test once."],
+];
+const cc=document.getElementById('conceptCards');
+concepts.forEach(([t,lay,tech])=>{
+  const d=document.createElement('div');d.className='card';
+  d.innerHTML=`<h3>${t}</h3><p>${lay}</p><div class="tech">${tech}</div>`;
+  cc.appendChild(d);
+});
+
+// ---------- model tabs ----------
+const models={
+  "MobileNetV2":{badge:"Baseline · CNN",params:"~3.4M",pretrain:"ImageNet (supervised)",adapt:"Full fine-tune",mae:"0.771 cm",note:"The paper's original encoder — compact, efficient, and still the best single model."},
+  "EfficientNet-B0":{badge:"NEW · CNN",params:"~5.3M",pretrain:"ImageNet (supervised)",adapt:"Full fine-tune",mae:"0.781 cm",note:"Only 0.010 cm behind the baseline at a basic recipe — the strongest single-model challenger."},
+  "ConvNeXt-Tiny":{badge:"CNN",params:"~28M",pretrain:"ImageNet (supervised)",adapt:"Full fine-tune",mae:"0.914 cm",note:"Modern CNN with Transformer-inspired design choices, still a pure convolutional network."},
+  "CLIP ViT-B/32":{badge:"Vision-Language Transformer",params:"~88M",pretrain:"400M image-text pairs",adapt:"Frozen / last-block",mae:"0.958–1.002 cm",note:"Transfers much better than DINOv2; last-block fine-tuning improves it further."},
+  "DINOv2 ViT-S/14":{badge:"Self-supervised Transformer",params:"~21M",pretrain:"Self-supervised, no labels",adapt:"Frozen (CLS/patch) / last-block / full",mae:"1.199–2.132 cm",note:"CLS token underperforms; patch-token pooling reliably improves it (3-seed controlled study)."},
+};
+const mt=document.getElementById('modelTabs');
+const mp=document.getElementById('modelPanel');
+function showModel(name){
+  const m=models[name];
+  [...mt.children].forEach(b=>b.classList.toggle('active',b.textContent===name));
+  mp.innerHTML=`<span class="badge">${m.badge}</span><h3>${name}</h3>
+    <div class="row">
+      <div class="col"><h4>Parameters</h4><p>${m.params}</p></div>
+      <div class="col"><h4>Pretrained on</h4><p>${m.pretrain}</p></div>
+      <div class="col"><h4>Adaptation tested</h4><p>${m.adapt}</p></div>
+      <div class="col"><h4>Full-test MAE</h4><p class="mae">${m.mae}</p></div>
+    </div>
+    <p style="margin-top:14px;color:#5b5b57;font-size:13.5px">${m.note}</p>`;
+}
+Object.keys(models).forEach((name,i)=>{
+  const b=document.createElement('button');b.textContent=name;
+  b.onclick=()=>showModel(name);
+  mt.appendChild(b);
+});
+showModel("MobileNetV2");
+
+// ---------- result bars ----------
+const lenData=[
+  ['MobileNetV2 (baseline)',0.771,'#2a78d6','best'],
+  ['EfficientNet-B0',0.781,'#eda100','close'],
+  ['ConvNeXt-Tiny',0.914,'#2a78d6',''],
+  ['CLIP last-block',0.958,'#1baf7a',''],
+  ['CLIP frozen',1.002,'#1baf7a',''],
+  ['DINOv2 patch-token',1.261,'#4a3aa7','new'],
+  ['DINOv2 CLS last-block',1.439,'#4a3aa7',''],
+  ['DINOv2 CLS frozen',1.843,'#4a3aa7',''],
+];
+let barsFilled=false;
+function fillBars(){
+  if(barsFilled)return; barsFilled=true;
+  const box=document.getElementById('lenBars');
+  const max=2.0;
+  lenData.forEach((d,i)=>{
+    const [name,val,col,tag]=d;
+    const pct=val/max*100;
+    const tg=tag?`<span class="tag ${tag}">${tag==='best'?'best':tag==='close'?'closest!':'NEW'}</span>`:'';
+    const row=document.createElement('div');row.className='bar-row';
+    row.innerHTML=`<div>${name}${tg}</div><div class="bar-track"><div class="bar-fill" style="background:${col}"></div></div><div class="v">${val.toFixed(3)}</div>`;
+    box.appendChild(row);
+    setTimeout(()=>row.querySelector('.bar-fill').style.width=Math.max(pct,4)+'%',80+i*110);
+  });
+}
+
+// ---------- Q&A accordion ----------
+const qa=[
+  ["Did any single model beat the baseline?","Not yet. EfficientNet-B0 (0.781 cm) is the closest — only 0.010 cm behind — and is actually better than the baseline on occluded fish specifically (0.893 vs 0.909 cm). A stronger-recipe search is running to test whether a single model can cross the baseline."],
+  ["Did the ensemble beat the baseline?","Yes — 0.711 cm vs 0.771 cm, using validation-selected weights and reporting once on test (no test-tuning). It beats the baseline on both non-occluded and occluded subsets."],
+  ["Is the ensemble a new model?","No. It's a combined-prediction system — a weighted average of three already-trained models' outputs — not a new architecture, and it costs more inference compute (three forward passes)."],
+  ["Why did patch tokens help DINOv2?","The CLS token is a single global summary optimized for 'what is this?' and discards spatial detail. Patch tokens keep per-location information, which precise length regression needs. Verified over 3 seeds: 1.261±0.054 vs 1.843±0.023 cm."],
+  ["Why does your occluded result differ from the paper?","Our occluded MAE (0.909 cm) is actually better than the paper's (1.38 cm) — we don't have their exact training details to explain the gap, so we report this honestly as unresolved rather than claiming credit."],
+  ["Why a group-level split instead of random?","The same physical fish appears in many photos. A random per-photo split would let a fish's identity leak across train/test, letting the model 'recognize' a fish instead of measuring it."],
+  ["What happened with fish_id=113?","It had annotations in both a train and a test group via a duplicate record. We removed the train-side annotation and re-verified zero leakage remains."],
+  ["Are the results statistically final?","No — most single-model results are single-run. Only the DINOv2 patch-vs-CLS comparison has 3-seed statistics. EfficientNet-B0's near-baseline result needs multi-seed confirmation before a stronger claim is justified."],
+  ["Did you try DINOv3?","We investigated it, but the pretrained weights are license-gated (HTTP 403 on the official download) — no DINOv3 results exist."],
+  ["What are the next steps?","Complete the stronger-recipe search for EfficientNet-B0/ConvNeXt; multi-seed the top models; try patch pooling for CLIP; test larger model variants; evaluate mask segmentation."],
+];
+const acc=document.getElementById('accordion');
+qa.forEach(([q,a])=>{
+  const item=document.createElement('div');item.className='acc-item';
+  item.innerHTML=`<button>${q}<span class="arrow">▶</span></button><div class="acc-body"><p>${a}</p></div>`;
+  item.querySelector('button').onclick=()=>item.classList.toggle('open');
+  acc.appendChild(item);
+});
+</script>
+</body>
+</html>
